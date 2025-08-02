@@ -11,6 +11,7 @@ import {
   PinOff,
   Eye,
   HelpCircle,
+  Trash2,
 } from 'lucide-react-native';
 
 export {
@@ -24,4 +25,5 @@ export {
   PinOff,
   Eye,
   HelpCircle,
+  Trash2,
 };

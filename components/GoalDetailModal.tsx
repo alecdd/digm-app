@@ -3,10 +3,9 @@ import {
   StyleSheet,
   View,
   Text,
-  TouchableOpacity,
-  Modal,
   ScrollView
 } from 'react-native';
+import { TouchableOpacity, Modal } from 'react-native';
 import { X, CheckCircle, Calendar, Target } from '@/lib/icons';
 import colors from '@/constants/colors';
 import { Goal } from '@/types';
@@ -15,7 +14,7 @@ import { useDigmStore } from '@/hooks/useDigmStore';
 interface GoalDetailModalProps {
   visible: boolean;
   onClose: () => void;
-  goal?: Goal | null;
+  goal?: Goal;
   onEdit: () => void;
 }
 

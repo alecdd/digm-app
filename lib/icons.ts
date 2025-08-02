@@ -4,7 +4,7 @@
 
 import XIcon from 'lucide-react-native/dist/esm/icons/x';
 import CheckIcon from 'lucide-react-native/dist/esm/icons/check';
-import CheckCircleIcon from 'lucide-react-native/dist/esm/icons/check-circle';
+import CheckCircleIcon from 'lucide-react-native/dist/esm/icons/check-circle-2';
 import CalendarIcon from 'lucide-react-native/dist/esm/icons/calendar';
 import TargetIcon from 'lucide-react-native/dist/esm/icons/target';
 import EditIcon from 'lucide-react-native/dist/esm/icons/edit';

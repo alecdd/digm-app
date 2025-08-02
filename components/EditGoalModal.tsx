@@ -299,9 +299,9 @@ export default function EditGoalModal({
             const updatedGoal: Goal = { ...goal, ...updatedGoalData };
             const updatedTasks: Task[] = updatedTasksData.map(t => ({
               ...t,
-              id: t.id || `task${Date.now()}-${Math.random().toString(36).slice(2)}`,
+              id: 'id' in t ? t.id : `task${Date.now()}-${Math.random().toString(36).slice(2)}`,
               goalId: goal.id,
-              createdAt: t.createdAt || new Date().toISOString(),
+              createdAt: 'createdAt' in t ? t.createdAt : new Date().toISOString(),
             }));
             onSave(updatedGoal, updatedTasks);
             setSmartGoalModalVisible(false);

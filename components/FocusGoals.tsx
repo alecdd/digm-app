@@ -136,7 +136,7 @@ export default function FocusGoals({ onSeeAllPress }: FocusGoalsProps) {
             setEditModalVisible(false);
             setEditingGoal(null);
           }}
-          goal={focusGoals.find(g => g.id === editingGoal) || undefined}
+          goal={focusGoals.find(g => g.id === editingGoal) || null}
           onSave={(updatedGoal, updatedTasks) => {
             updateGoal(updatedGoal);
             updatedTasks.forEach(updateTask);

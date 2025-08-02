@@ -1,6 +1,9 @@
 import React, { useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { Edit, Pin, PinOff, Eye } from "lucide-react-native";
+import Edit from 'lucide-react-native/dist/esm/icons/edit';
+import Pin from 'lucide-react-native/dist/esm/icons/pin';
+import PinOff from 'lucide-react-native/dist/esm/icons/pin-off';
+import Eye from 'lucide-react-native/dist/esm/icons/eye';
 import colors from "@/constants/colors";
 import { Goal } from "@/types";
 import { useDigmStore } from "@/hooks/useDigmStore";
@@ -81,7 +84,7 @@ export default function GoalTimeframeCard({ title, goals, onAddGoal }: GoalTimef
               <Text style={styles.goalTitle}>{goal.title}</Text>
               <View style={styles.goalActions}>
                 <TouchableOpacity 
-                  onPress={(e) => {
+                  onPress={(e: React.GestureResponderEvent) => {
                     e.stopPropagation();
                     handleTogglePin(goal.id);
                   }}
@@ -94,7 +97,7 @@ export default function GoalTimeframeCard({ title, goals, onAddGoal }: GoalTimef
                   )}
                 </TouchableOpacity>
                 <TouchableOpacity 
-                  onPress={(e) => {
+                  onPress={(e: React.GestureResponderEvent) => {
                     e.stopPropagation();
                     handleEditGoal(goal);
                   }}
@@ -103,7 +106,7 @@ export default function GoalTimeframeCard({ title, goals, onAddGoal }: GoalTimef
                   <Edit size={16} color={colors.textSecondary} />
                 </TouchableOpacity>
                 <TouchableOpacity 
-                  onPress={(e) => {
+                  onPress={(e: React.GestureResponderEvent) => {
                     e.stopPropagation();
                     handleViewGoal(goal);
                   }}
@@ -149,7 +152,7 @@ export default function GoalTimeframeCard({ title, goals, onAddGoal }: GoalTimef
         }}
         onSave={handleSaveGoal}
         timeframe={editingGoal?.timeframe || getTimeframeFromTitle()}
-        initialGoal={editingGoal}
+        initialGoal={editingGoal || undefined}
       />
       
       {/* Goal Detail Modal */}

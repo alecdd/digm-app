@@ -7,7 +7,7 @@ import {
   Modal,
   ScrollView
 } from 'react-native';
-import { X, CheckCircle2, Calendar, Target } from 'lucide-react-native';
+import { X, CheckCircle, Calendar, Target } from 'lucide-react-native';
 import colors from '@/constants/colors';
 import { Goal } from '@/types';
 import { useDigmStore } from '@/hooks/useDigmStore';
@@ -131,7 +131,7 @@ export default function GoalDetailModal({
                   <Text style={styles.taskGroupTitle}>Completed</Text>
                   {completedTasks.map(task => (
                     <View key={task.id} style={styles.taskItem}>
-                      <CheckCircle2 size={16} color={colors.success} />
+                      <CheckCircle size={16} color={colors.success} />
                       <Text style={[styles.taskTitle, styles.completedTaskTitle]}>
                         {task.title}
                       </Text>

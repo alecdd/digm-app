@@ -1,2 +1,2 @@
-# rork-digm-app-interface-design
-Created by Rork
+# digm-app
+Created by Alec Diaz

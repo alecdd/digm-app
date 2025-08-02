@@ -8,29 +8,34 @@ import {
   Modal, 
   ScrollView,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  Alert
 } from 'react-native';
 import { X, Plus, Trash2 } from 'lucide-react-native';
 import colors from '@/constants/colors';
 import { Goal, Task } from '@/types';
 import { useDigmStore } from '@/hooks/useDigmStore';
+import SmartGoalTemplate from './SmartGoalTemplate';
 
 interface EditGoalModalProps {
   visible: boolean;
   onClose: () => void;
   goal: Goal | null;
   onSave: (updatedGoal: Goal, updatedTasks: Task[]) => void;
+  onDelete?: (goalId: string) => void;
 }
 
 export default function EditGoalModal({ 
   visible, 
   onClose, 
   goal,
-  onSave
+  onSave,
+  onDelete
 }: EditGoalModalProps) {
-  const { tasks } = useDigmStore();
+  const { tasks, deleteGoal } = useDigmStore();
   const [title, setTitle] = useState('');
   const [dueDate, setDueDate] = useState('');
+  const [smartGoalModalVisible, setSmartGoalModalVisible] = useState(false);
   const [goalTasks, setGoalTasks] = useState<{
     id?: string;
     title: string;
@@ -166,6 +171,45 @@ export default function EditGoalModal({
 
   if (!goal) return null;
 
+  const handleDeleteGoal = () => {
+    if (!goal) return;
+    
+    Alert.alert(
+      'Delete Goal',
+      'Are you sure you want to delete this goal? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete', 
+          style: 'destructive',
+          onPress: () => {
+            if (onDelete) {
+              onDelete(goal.id);
+            } else {
+              deleteGoal(goal.id);
+            }
+            onClose();
+          } 
+        },
+      ]
+    );
+  };
+
+  const handleOpenSmartGoalTemplate = () => {
+    if (goal?.specific || goal?.measurable || goal?.achievable || goal?.relevant || goal?.timeBound) {
+      setSmartGoalModalVisible(true);
+    } else {
+      Alert.alert(
+        'SMART Goal Template',
+        'This goal was not created using the SMART goal template. Would you like to convert it to a SMART goal?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Convert', onPress: () => setSmartGoalModalVisible(true) }
+        ]
+      );
+    }
+  };
+
   return (
     <Modal
       visible={visible}
@@ -257,15 +301,75 @@ export default function EditGoalModal({
           </ScrollView>
 
           <View style={styles.footer}>
-            <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-              <Text style={styles.submitButtonText}>Save Changes</Text>
-            </TouchableOpacity>
+            <View style={styles.footerLeft}>
+              <TouchableOpacity 
+                style={styles.deleteButton} 
+                onPress={handleDeleteGoal}
+              >
+                <Trash2 color={colors.error} size={20} />
+                <Text style={styles.deleteButtonText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.footerRight}>
+              <TouchableOpacity style={styles.smartButton} onPress={handleOpenSmartGoalTemplate}>
+                <Text style={styles.smartButtonText}>SMART Template</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
+                <Text style={styles.submitButtonText}>Save Changes</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </KeyboardAvoidingView>
+
+      {goal && (
+        <SmartGoalTemplate
+          visible={smartGoalModalVisible}
+          onClose={() => setSmartGoalModalVisible(false)}
+          timeframe={goal.timeframe}
+          initialGoal={goal}
+          onSave={(updatedGoalData, updatedTasksData) => {
+            // Create updated goal object with existing ID and progress
+            const updatedGoal: Goal = {
+              ...goal,
+              ...updatedGoalData,
+            };
+            
+            // Get existing tasks for this goal
+            const existingTasks = tasks.filter(task => task.goalId === goal.id);
+            
+            // Create or update tasks
+            const updatedTasks = updatedTasksData.map(taskData => {
+              // Find if this task already exists (by title match)
+              const existingTask = existingTasks.find(t => t.title === taskData.title);
+              
+              if (existingTask) {
+                // Update existing task
+                return {
+                  ...existingTask,
+                  isHighImpact: taskData.isHighImpact,
+                  xpReward: taskData.xpReward
+                };
+              } else {
+                // Create new task
+                return {
+                  ...taskData,
+                  id: `task${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                  goalId: goal.id,
+                  createdAt: new Date().toISOString(),
+                };
+              }
+            });
+            
+            // Save changes
+            onSave(updatedGoal, updatedTasks);
+            setSmartGoalModalVisible(false);
+          }}
+        />
+      )}
     </Modal>
   );
 }
@@ -383,10 +487,45 @@ const styles = StyleSheet.create({
   },
   footer: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
     padding: 16,
     borderTopWidth: 1,
     borderTopColor: colors.border,
+  },
+  footerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  footerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.error,
+  },
+  deleteButtonText: {
+    color: colors.error,
+    fontSize: 14,
+    fontWeight: '600' as const,
+    marginLeft: 8,
+  },
+  smartButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    marginRight: 12,
+    borderRadius: 8,
+    backgroundColor: colors.cardLight,
+  },
+  smartButtonText: {
+    color: colors.primary,
+    fontSize: 14,
+    fontWeight: '600' as const,
   },
   cancelButton: {
     paddingVertical: 10,

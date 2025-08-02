@@ -8,7 +8,7 @@ import {
   Modal,
   Alert
 } from 'react-native';
-import { X, CheckCircle, Calendar, Target, Trash2 } from '@/lib/icons';
+import { X, CheckCircle, Calendar, Target, Trash2, Edit } from '@/lib/icons';
 import colors from '@/constants/colors';
 import { Goal } from '@/types';
 import { useDigmStore } from '@/hooks/useDigmStore';
@@ -192,6 +192,7 @@ export default function GoalDetailModal({
                 }
               }}
             >
+              <Edit color={colors.text} size={20} />
               <Text style={styles.editButtonText}>Edit Goal</Text>
             </TouchableOpacity>
           </View>
@@ -211,6 +212,10 @@ export default function GoalDetailModal({
               
               // Close the edit modal
               setEditModalVisible(false);
+            }}
+            onDelete={(goalId) => {
+              deleteGoal(goalId);
+              onClose();
             }}
           />
           
@@ -458,6 +463,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
     flex: 1,
     marginLeft: 12,
   },
@@ -465,5 +472,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 16,
     fontWeight: '600',
+    marginLeft: 8,
   },
 });

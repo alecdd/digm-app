@@ -1,4 +1,13 @@
+const tintColorLight = '#0066FF';
+
 const colors = {
+  light: {
+    text: '#ffffff',
+    background: '#121212',
+    tint: tintColorLight,
+    tabIconDefault: '#666666',
+    tabIconSelected: tintColorLight,
+  },
   primary: "#0066FF", // Rapid blue as primary accent
   primaryLight: "#3385FF",
   primaryDark: "#0052CC",

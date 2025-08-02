@@ -1,5 +1,7 @@
 import React, { useState } from "react";
-import { StyleSheet, Text, TouchableOpacity, View, GestureResponderEvent } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { TouchableOpacity } from "react-native";
+import type { GestureResponderEvent } from "react-native";
 import { Edit, Pin, PinOff, Eye } from '@/lib/icons';
 import colors from "@/constants/colors";
 import { Goal } from "@/types";
@@ -15,8 +17,8 @@ interface GoalTimeframeCardProps {
 
 export default function GoalTimeframeCard({ title, goals, onAddGoal }: GoalTimeframeCardProps) {
   const { updateGoal, pinnedGoalIds, togglePinGoal, addGoal } = useDigmStore();
-  const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
-  const [viewingGoal, setViewingGoal] = useState<Goal | null>(null);
+  const [editingGoal, setEditingGoal] = useState<Goal | undefined>(undefined);
+  const [viewingGoal, setViewingGoal] = useState<Goal | undefined>(undefined);
   const [smartGoalModalVisible, setSmartGoalModalVisible] = useState(false);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   
@@ -46,7 +48,7 @@ export default function GoalTimeframeCard({ title, goals, onAddGoal }: GoalTimef
       addGoal(goalData, tasks);
     }
     setSmartGoalModalVisible(false);
-    setEditingGoal(null);
+    setEditingGoal(undefined);
   };
   
   const handleTogglePin = (goalId: string) => {
@@ -133,7 +135,7 @@ export default function GoalTimeframeCard({ title, goals, onAddGoal }: GoalTimef
       <TouchableOpacity 
         style={styles.addButton} 
         onPress={() => {
-          setEditingGoal(null);
+          setEditingGoal(undefined);
           setSmartGoalModalVisible(true);
         }}
       >
@@ -145,11 +147,11 @@ export default function GoalTimeframeCard({ title, goals, onAddGoal }: GoalTimef
         visible={smartGoalModalVisible}
         onClose={() => {
           setSmartGoalModalVisible(false);
-          setEditingGoal(null);
+          setEditingGoal(undefined);
         }}
         onSave={handleSaveGoal}
         timeframe={editingGoal?.timeframe || getTimeframeFromTitle()}
-        initialGoal={editingGoal ?? undefined}
+        initialGoal={editingGoal}
       />
       
       {/* Goal Detail Modal */}
@@ -157,7 +159,7 @@ export default function GoalTimeframeCard({ title, goals, onAddGoal }: GoalTimef
         visible={detailModalVisible}
         onClose={() => {
           setDetailModalVisible(false);
-          setViewingGoal(null);
+          setViewingGoal(undefined);
         }}
         goal={viewingGoal}
         onEdit={() => {

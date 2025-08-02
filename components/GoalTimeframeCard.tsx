@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { TouchableOpacity } from "react-native";
-import type { GestureResponderEvent } from "react-native";
+import { GestureResponderEvent } from 'react-native';
+//import type { GestureResponderEvent } from "react-native";
 import { Edit, Pin, PinOff, Eye } from '@/lib/icons';
 import colors from "@/constants/colors";
 import { Goal } from "@/types";

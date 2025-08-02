@@ -12,6 +12,7 @@ import {
   Eye,
   HelpCircle,
   Trash2,
+  Plus,
 } from 'lucide-react-native';
 
 export {
@@ -26,4 +27,5 @@ export {
   Eye,
   HelpCircle,
   Trash2,
+  Plus,
 };

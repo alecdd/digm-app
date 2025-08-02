@@ -6,9 +6,11 @@ import {
   TextInput,
   ScrollView,
   KeyboardAvoidingView,
-  Alert
+  Alert,
+  TouchableOpacity,
+  Modal,
+  Platform
 } from 'react-native';
-import { TouchableOpacity, Modal, Platform } from 'react-native';
 import { X, Check, HelpCircle } from '@/lib/icons';
 import colors from '@/constants/colors';
 import { Goal } from '@/types';

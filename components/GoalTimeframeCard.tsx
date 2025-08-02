@@ -1,7 +1,5 @@
 import React, { useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
-import { TouchableOpacity } from "react-native";
-import { GestureResponderEvent } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, GestureResponderEvent } from "react-native";
 //import type { GestureResponderEvent } from "react-native";
 import { Edit, Pin, PinOff, Eye } from '@/lib/icons';
 import colors from "@/constants/colors";
@@ -164,10 +162,17 @@ export default function GoalTimeframeCard({ title, goals, onAddGoal }: GoalTimef
         }}
         goal={viewingGoal}
         onEdit={() => {
+          // First close the detail modal
           setDetailModalVisible(false);
-          if (viewingGoal) {
-            handleEditGoal(viewingGoal);
-          }
+          
+          // Then set the editing goal and open the edit modal
+          // Use setTimeout to ensure the detail modal closes first
+          setTimeout(() => {
+            if (viewingGoal) {
+              setEditingGoal(viewingGoal);
+              setSmartGoalModalVisible(true);
+            }
+          }, 100);
         }}
       />
     </View>

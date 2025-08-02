@@ -5,13 +5,15 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  Modal
+  Modal,
+  Alert
 } from 'react-native';
-import { X, CheckCircle, Calendar, Target } from '@/lib/icons';
+import { X, CheckCircle, Calendar, Target, Trash2 } from '@/lib/icons';
 import colors from '@/constants/colors';
 import { Goal } from '@/types';
 import { useDigmStore } from '@/hooks/useDigmStore';
 import EditGoalModal from './EditGoalModal';
+import SmartGoalTemplate from './SmartGoalTemplate';
 
 interface GoalDetailModalProps {
   visible: boolean;
@@ -24,8 +26,9 @@ export default function GoalDetailModal({
   onClose,
   goal
 }: GoalDetailModalProps) {
-  const { tasks, updateGoal, updateTask } = useDigmStore();
+  const { tasks, updateGoal, updateTask, addTask, deleteGoal } = useDigmStore();
   const [editModalVisible, setEditModalVisible] = useState(false);
+  const [smartGoalModalVisible, setSmartGoalModalVisible] = useState(false);
 
   if (!goal) return null;
 
@@ -152,7 +155,43 @@ export default function GoalDetailModal({
           </ScrollView>
 
           <View style={styles.footer}>
-            <TouchableOpacity style={styles.editButton} onPress={() => setEditModalVisible(true)}>
+            <TouchableOpacity 
+              style={styles.deleteButton} 
+              onPress={() => {
+                Alert.alert(
+                  'Delete Goal',
+                  'Are you sure you want to delete this goal? This action cannot be undone.',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    { 
+                      text: 'Delete', 
+                      style: 'destructive',
+                      onPress: () => {
+                        if (goal) {
+                          // Delete the goal from the store
+                          deleteGoal(goal.id);
+                          onClose();
+                        }
+                      } 
+                    },
+                  ]
+                );
+              }}
+            >
+              <Trash2 color={colors.error} size={20} />
+              <Text style={styles.deleteButtonText}>Delete Goal</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.editButton} 
+              onPress={() => {
+                // If the goal has SMART fields, use the SmartGoalTemplate
+                if (goal?.specific || goal?.measurable || goal?.achievable || goal?.relevant || goal?.timeBound) {
+                  setSmartGoalModalVisible(true);
+                } else {
+                  setEditModalVisible(true);
+                }
+              }}
+            >
               <Text style={styles.editButtonText}>Edit Goal</Text>
             </TouchableOpacity>
           </View>
@@ -174,6 +213,60 @@ export default function GoalDetailModal({
               setEditModalVisible(false);
             }}
           />
+          
+          {goal && (
+            <SmartGoalTemplate
+              visible={smartGoalModalVisible}
+              onClose={() => setSmartGoalModalVisible(false)}
+              timeframe={goal.timeframe}
+              initialGoal={goal}
+              onSave={(updatedGoalData, updatedTasksData) => {
+                // Create updated goal object with existing ID and progress
+                const updatedGoal: Goal = {
+                  ...goal,
+                  ...updatedGoalData,
+                };
+                
+                // Update the goal
+                updateGoal(updatedGoal);
+                
+                // Get existing tasks for this goal
+                const existingTasks = tasks.filter(task => task.goalId === goal.id);
+                // Get existing tasks for reference
+                
+                // Create or update tasks
+                updatedTasksData.forEach(taskData => {
+                  // Find if this task already exists (by title match)
+                  const existingTask = existingTasks.find(t => t.title === taskData.title);
+                  
+                  if (existingTask) {
+                    // Update existing task
+                    updateTask({
+                      ...existingTask,
+                      isHighImpact: taskData.isHighImpact,
+                      xpReward: taskData.xpReward
+                    });
+                  } else {
+                    // Add new task
+                    const newTask = {
+                      ...taskData,
+                      goalId: goal.id,
+                    };
+                    const addedTask = addTask(newTask);
+                    
+                    // Update goal's tasks array
+                    updateGoal({
+                      ...updatedGoal,
+                      tasks: [...updatedGoal.tasks, addedTask.id]
+                    });
+                  }
+                });
+                
+                // Close the modal
+                setSmartGoalModalVisible(false);
+              }}
+            />
+          )}
         </View>
       </View>
     </Modal>
@@ -340,12 +433,33 @@ const styles = StyleSheet.create({
     padding: 16,
     borderTopWidth: 1,
     borderTopColor: colors.border,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  deleteButton: {
+    backgroundColor: colors.cardLight,
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderColor: colors.error,
+  },
+  deleteButtonText: {
+    color: colors.error,
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
   },
   editButton: {
     backgroundColor: colors.primary,
     borderRadius: 8,
     paddingVertical: 12,
+    paddingHorizontal: 16,
     alignItems: 'center',
+    flex: 1,
+    marginLeft: 12,
   },
   editButtonText: {
     color: colors.text,

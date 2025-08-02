@@ -313,6 +313,18 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
     });
   }, []);
 
+  // Delete a goal and its associated tasks
+  const deleteGoal = useCallback((goalId: string) => {
+    // Remove the goal
+    setGoals(current => current.filter(goal => goal.id !== goalId));
+    
+    // Remove all tasks associated with this goal
+    setTasks(current => current.filter(task => task.goalId !== goalId));
+    
+    // Remove from pinned goals if it was pinned
+    setPinnedGoalIds(current => current.filter(id => id !== goalId));
+  }, []);
+
   return {
     userProfile,
     goals,
@@ -330,6 +342,7 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
     addTask,
     updateGoal,
     addGoal,
+    deleteGoal,
     addJournalEntry,
     updateVision,
     togglePinGoal,

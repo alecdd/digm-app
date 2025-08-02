@@ -19,6 +19,11 @@ export interface Goal {
   progress: number;
   timeframe: "10year" | "5year" | "1year" | "3month" | "1month" | "1week";
   tasks: string[];
+  specific?: string;
+  measurable?: string;
+  achievable?: string;
+  relevant?: string;
+  timeBound?: string;
 }
 
 export interface JournalEntry {

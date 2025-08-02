@@ -11,7 +11,9 @@ import {
   Platform,
   Alert
 } from 'react-native';
-import { X, Check, HelpCircle } from 'lucide-react-native';
+import X from 'lucide-react-native/dist/esm/icons/x';
+import Check from 'lucide-react-native/dist/esm/icons/check';
+import HelpCircle from 'lucide-react-native/dist/esm/icons/help-circle';
 import colors from '@/constants/colors';
 import { Goal } from '@/types';
 import { useDigmStore } from '@/hooks/useDigmStore';

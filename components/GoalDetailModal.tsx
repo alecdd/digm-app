@@ -8,7 +8,8 @@ import {
   Modal,
   Alert
 } from 'react-native';
-import { X, CheckCircle, Calendar, Target, Trash2, Edit } from '@/lib/icons';
+import { X, CheckCircle, Calendar, Target, Edit } from '@/lib/icons';
+import { Trash2 } from 'lucide-react-native';
 import colors from '@/constants/colors';
 import { Goal } from '@/types';
 import { useDigmStore } from '@/hooks/useDigmStore';

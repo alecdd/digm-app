@@ -196,18 +196,8 @@ export default function EditGoalModal({
   };
 
   const handleOpenSmartGoalTemplate = () => {
-    if (goal?.specific || goal?.measurable || goal?.achievable || goal?.relevant || goal?.timeBound) {
-      setSmartGoalModalVisible(true);
-    } else {
-      Alert.alert(
-        'SMART Goal Template',
-        'This goal was not created using the SMART goal template. Would you like to convert it to a SMART goal?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Convert', onPress: () => setSmartGoalModalVisible(true) }
-        ]
-      );
-    }
+    // Always open the SMART goal template, regardless of whether the goal was created with it
+    setSmartGoalModalVisible(true);
   };
 
   return (

@@ -11,9 +11,9 @@ import {
   PinOff,
   Eye,
   HelpCircle,
-  Trash2,
-  Plus,
-  ChevronRight,
+  Trash,
+  ChevronRight as ChevronRightIcon,
+  PlusCircle,
 } from 'lucide-react-native';
 
 export {
@@ -27,7 +27,7 @@ export {
   PinOff,
   Eye,
   HelpCircle,
-  Trash2,
-  Plus,
-  ChevronRight,
+  Trash,
+  PlusCircle as Plus,
+  ChevronRightIcon as ChevronRight,
 };

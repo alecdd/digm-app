@@ -11,7 +11,7 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import { X, Trash2, Plus } from 'lucide-react-native';
+import { X, Trash, Plus } from 'lucide-react-native'; // ✅ Updated to use Trash
 import colors from '@/constants/colors';
 import { Goal, Task } from '@/types';
 import { useDigmStore } from '@/hooks/useDigmStore';
@@ -243,7 +243,7 @@ export default function EditGoalModal({
                     placeholderTextColor={colors.textSecondary}
                   />
                   <TouchableOpacity onPress={() => handleRemoveTask(index)}>
-                    <Trash2 color={colors.error} size={20} />
+                    <Trash color={colors.error} size={20} /> {/* ✅ Fixed icon */}
                   </TouchableOpacity>
                 </View>
                 <TouchableOpacity
@@ -272,7 +272,7 @@ export default function EditGoalModal({
 
           <View style={styles.footer}>
             <TouchableOpacity onPress={handleDeleteGoal} style={styles.deleteButton}>
-              <Trash2 color={colors.error} size={18} />
+              <Trash color={colors.error} size={18} />
               <Text style={styles.deleteButtonText}>Delete</Text>
             </TouchableOpacity>
             <View style={styles.actions}>

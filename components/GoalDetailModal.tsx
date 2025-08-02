@@ -105,7 +105,7 @@ export default function GoalDetailModal({
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.headerTitle}>{goal.title}</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton} accessibilityLabel="Close modal">
               <X size={24} color={colors.text} />
             </TouchableOpacity>
           </View>
@@ -192,13 +192,19 @@ export default function GoalDetailModal({
 
           {/* Footer */}
           <View style={styles.footer}>
-            <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={handleDelete}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityLabel="Delete Goal"
+            >
               <Trash2 size={20} color={colors.error} />
               <Text style={styles.deleteButtonText}>Delete Goal</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.editButton}
               onPress={() => setEditModalVisible(true)}
+              accessibilityLabel="Edit Goal"
             >
               <Edit size={20} color={colors.text} />
               <Text style={styles.editButtonText}>Edit Goal</Text>

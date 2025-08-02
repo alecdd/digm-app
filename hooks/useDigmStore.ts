@@ -325,13 +325,17 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
     // Remove the goal
     setGoals(current => {
       console.log('useDigmStore - Filtering goals, removing:', goalId);
-      return current.filter(goal => goal.id !== goalId);
+      const newGoals = current.filter(goal => goal.id !== goalId);
+      console.log('useDigmStore - Goals after removal:', newGoals.length);
+      return newGoals;
     });
     
     // Remove all tasks associated with this goal
     setTasks(current => {
       console.log('useDigmStore - Removing tasks for goal:', goalId);
-      return current.filter(task => task.goalId !== goalId);
+      const newTasks = current.filter(task => task.goalId !== goalId);
+      console.log('useDigmStore - Tasks after removal:', newTasks.length);
+      return newTasks;
     });
     
     // Remove from pinned goals if it was pinned
@@ -339,9 +343,17 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
       if (current.includes(goalId)) {
         console.log('useDigmStore - Removing goal from pinned goals:', goalId);
       }
-      return current.filter(id => id !== goalId);
+      const newPinnedGoals = current.filter(id => id !== goalId);
+      console.log('useDigmStore - Pinned goals after removal:', newPinnedGoals.length);
+      return newPinnedGoals;
     });
-  }, []);
+    
+    // Force save to AsyncStorage after deletion
+    setTimeout(() => {
+      console.log('useDigmStore - Forcing save to AsyncStorage after goal deletion');
+      saveData();
+    }, 100);
+  }, [saveData]);
 
   return {
     userProfile,

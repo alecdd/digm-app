@@ -210,9 +210,11 @@ export default function EditGoalModal({
             console.log('EditGoalModal - Deleting goal with ID:', goal.id);
             if (onDelete) {
               // Use the provided onDelete callback if available
+              console.log('Using provided onDelete callback');
               onDelete(goal.id);
             } else {
               // Fallback to direct store deletion
+              console.log('Using direct store deletion');
               deleteGoal(goal.id);
             }
             // Close the modal after deletion

@@ -17,7 +17,7 @@ export default function FocusGoals({ onSeeAllPress }: FocusGoalsProps) {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const router = useRouter();
   const focusGoals = useFocusGoals();
-  const { pinnedGoalIds, togglePinGoal, updateGoal, updateTask } = useDigmStore();
+  const { pinnedGoalIds, togglePinGoal, updateGoal, updateTask, deleteGoal } = useDigmStore();
 
   const handleSeeAll = () => {
     if (onSeeAllPress) {
@@ -149,6 +149,12 @@ export default function FocusGoals({ onSeeAllPress }: FocusGoalsProps) {
             });
             
             // Close the edit modal
+            setEditModalVisible(false);
+            setEditingGoal(null);
+          }}
+          onDelete={(goalId) => {
+            console.log('FocusGoals - Deleting goal with ID:', goalId);
+            deleteGoal(goalId);
             setEditModalVisible(false);
             setEditingGoal(null);
           }}

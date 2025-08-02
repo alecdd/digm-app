@@ -170,6 +170,7 @@ export default function GoalDetailModal({
                         if (goal) {
                           console.log('GoalDetailModal - Direct delete of goal with ID:', goal.id);
                           // Delete the goal from the store
+                          console.log('Calling deleteGoal with ID:', goal.id);
                           deleteGoal(goal.id);
                           // Close the modal after deletion
                           onClose();

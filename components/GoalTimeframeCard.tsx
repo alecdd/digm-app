@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View, GestureResponderEvent } from "react-native";
 import Edit from 'lucide-react-native/dist/esm/icons/edit';
 import Pin from 'lucide-react-native/dist/esm/icons/pin';
 import PinOff from 'lucide-react-native/dist/esm/icons/pin-off';
@@ -84,7 +84,7 @@ export default function GoalTimeframeCard({ title, goals, onAddGoal }: GoalTimef
               <Text style={styles.goalTitle}>{goal.title}</Text>
               <View style={styles.goalActions}>
                 <TouchableOpacity 
-                  onPress={(e: React.GestureResponderEvent) => {
+                  onPress={(e: GestureResponderEvent) => {
                     e.stopPropagation();
                     handleTogglePin(goal.id);
                   }}
@@ -97,7 +97,7 @@ export default function GoalTimeframeCard({ title, goals, onAddGoal }: GoalTimef
                   )}
                 </TouchableOpacity>
                 <TouchableOpacity 
-                  onPress={(e: React.GestureResponderEvent) => {
+                  onPress={(e: GestureResponderEvent) => {
                     e.stopPropagation();
                     handleEditGoal(goal);
                   }}
@@ -106,7 +106,7 @@ export default function GoalTimeframeCard({ title, goals, onAddGoal }: GoalTimef
                   <Edit size={16} color={colors.textSecondary} />
                 </TouchableOpacity>
                 <TouchableOpacity 
-                  onPress={(e: React.GestureResponderEvent) => {
+                  onPress={(e: GestureResponderEvent) => {
                     e.stopPropagation();
                     handleViewGoal(goal);
                   }}

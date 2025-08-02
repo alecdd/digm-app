@@ -16,7 +16,7 @@ interface GoalTimeframeCardProps {
 }
 
 export default function GoalTimeframeCard({ title, goals, onAddGoal }: GoalTimeframeCardProps) {
-  const { updateGoal, pinnedGoalIds, togglePinGoal, addGoal, updateTask } = useDigmStore();
+  const { updateGoal, pinnedGoalIds, togglePinGoal, addGoal, updateTask, deleteGoal } = useDigmStore();
   const [editingGoal, setEditingGoal] = useState<Goal | undefined>(undefined);
   const [viewingGoal, setViewingGoal] = useState<Goal | undefined>(undefined);
   const [smartGoalModalVisible, setSmartGoalModalVisible] = useState(false);
@@ -174,6 +174,12 @@ export default function GoalTimeframeCard({ title, goals, onAddGoal }: GoalTimef
             });
             
             // Close the edit modal
+            setEditModalVisible(false);
+            setEditingGoal(undefined);
+          }}
+          onDelete={(goalId) => {
+            console.log('GoalTimeframeCard - Deleting goal with ID:', goalId);
+            deleteGoal(goalId);
             setEditModalVisible(false);
             setEditingGoal(undefined);
           }}

@@ -103,9 +103,11 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
 
   // Task mutations
   const updateTask = useCallback((updatedTask: Task) => {
+    console.log('useDigmStore - updateTask called with task:', updatedTask);
     const previousTask = tasks.find(t => t.id === updatedTask.id);
     
     setTasks(currentTasks => {
+      console.log('useDigmStore - Updating task with ID:', updatedTask.id);
       const newTasks = currentTasks.map(task => 
         task.id === updatedTask.id ? updatedTask : task
       );
@@ -174,13 +176,16 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
 
   // Goal mutations
   const updateGoal = useCallback((updatedGoal: Goal) => {
+    console.log('useDigmStore - updateGoal called with goal:', updatedGoal);
+    
     // Check if goal is newly completed (100%)
     const existingGoal = goals.find(g => g.id === updatedGoal.id);
     const isNewlyCompleted = existingGoal && existingGoal.progress < 100 && updatedGoal.progress === 100;
     
-    setGoals(current => 
-      current.map(goal => goal.id === updatedGoal.id ? updatedGoal : goal)
-    );
+    setGoals(current => {
+      console.log('useDigmStore - Updating goal with ID:', updatedGoal.id);
+      return current.map(goal => goal.id === updatedGoal.id ? updatedGoal : goal);
+    });
     
     // If goal is newly completed, award XP and show completion effect
     if (isNewlyCompleted) {
@@ -315,14 +320,27 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
 
   // Delete a goal and its associated tasks
   const deleteGoal = useCallback((goalId: string) => {
+    console.log('useDigmStore - deleteGoal called with ID:', goalId);
+    
     // Remove the goal
-    setGoals(current => current.filter(goal => goal.id !== goalId));
+    setGoals(current => {
+      console.log('useDigmStore - Filtering goals, removing:', goalId);
+      return current.filter(goal => goal.id !== goalId);
+    });
     
     // Remove all tasks associated with this goal
-    setTasks(current => current.filter(task => task.goalId !== goalId));
+    setTasks(current => {
+      console.log('useDigmStore - Removing tasks for goal:', goalId);
+      return current.filter(task => task.goalId !== goalId);
+    });
     
     // Remove from pinned goals if it was pinned
-    setPinnedGoalIds(current => current.filter(id => id !== goalId));
+    setPinnedGoalIds(current => {
+      if (current.includes(goalId)) {
+        console.log('useDigmStore - Removing goal from pinned goals:', goalId);
+      }
+      return current.filter(id => id !== goalId);
+    });
   }, []);
 
   return {

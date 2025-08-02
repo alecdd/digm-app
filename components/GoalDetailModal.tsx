@@ -8,7 +8,7 @@ import {
   Modal,
   Alert
 } from 'react-native';
-import { X, CheckCircle, Calendar, Target, Edit, Trash2 } from '@/lib/icons';
+import { X, CheckCircle, Calendar, Target, Edit, Trash2 } from 'lucide-react-native';
 import colors from '@/constants/colors';
 import { Goal } from '@/types';
 import { useDigmStore } from '@/hooks/useDigmStore';
@@ -168,6 +168,7 @@ export default function GoalDetailModal({
                       style: 'destructive',
                       onPress: () => {
                         if (goal) {
+                          console.log('GoalDetailModal - Direct delete of goal with ID:', goal.id);
                           // Delete the goal from the store
                           deleteGoal(goal.id);
                           onClose();
@@ -195,11 +196,13 @@ export default function GoalDetailModal({
             onClose={() => setEditModalVisible(false)}
             goal={goal}
             onSave={(updatedGoal, updatedTasks) => {
+              console.log('GoalDetailModal - Saving updated goal:', updatedGoal);
               // Update the goal
               updateGoal(updatedGoal);
               
               // Update or add tasks
               updatedTasks.forEach(task => {
+                console.log('GoalDetailModal - Updating task:', task);
                 updateTask(task);
               });
               
@@ -207,6 +210,7 @@ export default function GoalDetailModal({
               setEditModalVisible(false);
             }}
             onDelete={(goalId) => {
+              console.log('GoalDetailModal - Deleting goal with ID:', goalId);
               deleteGoal(goalId);
               onClose();
             }}

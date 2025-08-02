@@ -146,18 +146,18 @@ export default function EditGoalModal({
         createdAt: new Date().toISOString(),
       }));
 
-    // Create updated goal object with SMART data if it exists
+    // Create updated goal object with SMART data
     const updatedGoal: Goal = {
       ...goal,
       title,
       dueDate: formattedDueDate,
       tasks: validTasks.map(task => task.id || ''),
-      // Preserve SMART goal data
-      specific: goal.specific || smartGoalData.specific,
-      measurable: goal.measurable || smartGoalData.measurable,
-      achievable: goal.achievable || smartGoalData.achievable,
-      relevant: goal.relevant || smartGoalData.relevant,
-      timeBound: goal.timeBound || smartGoalData.timeBound
+      // Update SMART goal data with current values
+      specific: smartGoalData.specific,
+      measurable: smartGoalData.measurable,
+      achievable: smartGoalData.achievable,
+      relevant: smartGoalData.relevant,
+      timeBound: smartGoalData.timeBound
     };
 
     // Convert task objects to proper Task type
@@ -173,6 +173,8 @@ export default function EditGoalModal({
       completedAt: task.isCompleted ? tasks.find(t => t.id === task.id)?.completedAt || new Date().toISOString() : undefined,
     }));
 
+    console.log('Saving updated goal:', updatedGoal);
+    console.log('Saving updated tasks:', updatedTasks);
     onSave(updatedGoal, updatedTasks);
     onClose();
   };
@@ -205,6 +207,7 @@ export default function EditGoalModal({
           text: 'Delete', 
           style: 'destructive',
           onPress: () => {
+            console.log('Deleting goal with ID:', goal.id);
             if (onDelete) {
               onDelete(goal.id);
             } else {

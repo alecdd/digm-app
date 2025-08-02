@@ -416,9 +416,10 @@ export default function SmartGoalTemplate({
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-              <Text style={styles.submitButtonText}>
-                <Check size={16} color={colors.text} /> Save Changes
-              </Text>
+              <View style={styles.submitButtonContent}>
+                <Check size={16} color={colors.text} />
+                <Text style={styles.submitButtonText}>Save Changes</Text>
+              </View>
             </TouchableOpacity>
           </View>
         </View>
@@ -632,5 +633,10 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 16,
     fontWeight: '600',
+    marginLeft: 8,
+  },
+  submitButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
 });

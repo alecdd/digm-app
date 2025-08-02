@@ -11,7 +11,8 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import { X, Trash, Plus } from 'lucide-react-native'; // ✅ Updated to use Trash
+import { X, Trash } from 'lucide-react-native';
+import { Plus } from '@/lib/icons';
 import colors from '@/constants/colors';
 import { Goal, Task } from '@/types';
 import { useDigmStore } from '@/hooks/useDigmStore';

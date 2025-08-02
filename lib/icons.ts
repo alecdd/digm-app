@@ -13,6 +13,7 @@ import {
   HelpCircle,
   Trash2,
   Plus,
+  ChevronRight,
 } from 'lucide-react-native';
 
 export {
@@ -28,4 +29,5 @@ export {
   HelpCircle,
   Trash2,
   Plus,
+  ChevronRight,
 };

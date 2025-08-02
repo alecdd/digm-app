@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   StyleSheet,
   View,
@@ -11,21 +11,21 @@ import { X, CheckCircle, Calendar, Target } from '@/lib/icons';
 import colors from '@/constants/colors';
 import { Goal } from '@/types';
 import { useDigmStore } from '@/hooks/useDigmStore';
+import EditGoalModal from './EditGoalModal';
 
 interface GoalDetailModalProps {
   visible: boolean;
   onClose: () => void;
   goal?: Goal;
-  onEdit: () => void;
 }
 
 export default function GoalDetailModal({
   visible,
   onClose,
-  goal,
-  onEdit
+  goal
 }: GoalDetailModalProps) {
-  const { tasks } = useDigmStore();
+  const { tasks, updateGoal, updateTask } = useDigmStore();
+  const [editModalVisible, setEditModalVisible] = useState(false);
 
   if (!goal) return null;
 
@@ -152,10 +152,28 @@ export default function GoalDetailModal({
           </ScrollView>
 
           <View style={styles.footer}>
-            <TouchableOpacity style={styles.editButton} onPress={onEdit}>
+            <TouchableOpacity style={styles.editButton} onPress={() => setEditModalVisible(true)}>
               <Text style={styles.editButtonText}>Edit Goal</Text>
             </TouchableOpacity>
           </View>
+          
+          <EditGoalModal
+            visible={editModalVisible}
+            onClose={() => setEditModalVisible(false)}
+            goal={goal}
+            onSave={(updatedGoal, updatedTasks) => {
+              // Update the goal
+              updateGoal(updatedGoal);
+              
+              // Update or add tasks
+              updatedTasks.forEach(task => {
+                updateTask(task);
+              });
+              
+              // Close the edit modal
+              setEditModalVisible(false);
+            }}
+          />
         </View>
       </View>
     </Modal>

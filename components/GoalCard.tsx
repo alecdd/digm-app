@@ -1,13 +1,15 @@
-import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import React, { useState } from "react";
+import { StyleSheet, Text, View, TouchableOpacity } from "react-native";
 import colors from "@/constants/colors";
 import { Goal } from "@/types";
+import GoalDetailModal from "./GoalDetailModal";
 
 interface GoalCardProps {
   goal: Goal;
 }
 
 export default function GoalCard({ goal }: GoalCardProps) {
+  const [detailModalVisible, setDetailModalVisible] = useState(false);
   // Format date to MM/DD/YY
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -15,23 +17,36 @@ export default function GoalCard({ goal }: GoalCardProps) {
   };
 
   return (
-    <View style={styles.container} testID={`goal-card-${goal.id}`}>
-      <View style={styles.header}>
-        <Text style={styles.title}>{goal.title}</Text>
-        <Text style={styles.date}>{formatDate(goal.dueDate)}</Text>
-      </View>
-      <View style={styles.progressContainer}>
-        <View style={styles.progressBackground}>
-          <View 
-            style={[
-              styles.progressFill, 
-              { width: `${goal.progress}%` }
-            ]} 
-          />
+    <>
+      <TouchableOpacity 
+        style={styles.container} 
+        testID={`goal-card-${goal.id}`}
+        onPress={() => setDetailModalVisible(true)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.header}>
+          <Text style={styles.title}>{goal.title}</Text>
+          <Text style={styles.date}>{formatDate(goal.dueDate)}</Text>
         </View>
-        <Text style={styles.progressText}>{goal.progress}%</Text>
-      </View>
-    </View>
+        <View style={styles.progressContainer}>
+          <View style={styles.progressBackground}>
+            <View 
+              style={[
+                styles.progressFill, 
+                { width: `${goal.progress}%` }
+              ]} 
+            />
+          </View>
+          <Text style={styles.progressText}>{goal.progress}%</Text>
+        </View>
+      </TouchableOpacity>
+      
+      <GoalDetailModal
+        visible={detailModalVisible}
+        onClose={() => setDetailModalVisible(false)}
+        goal={goal}
+      />
+    </>
   );
 }
 

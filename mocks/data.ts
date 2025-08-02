@@ -1,0 +1,203 @@
+import { Goal, JournalEntry, Task, UserProfile } from "@/types";
+
+export const mockUserProfile: UserProfile = {
+  vision: "To inspire and lead with unwavering optimism",
+  xp: 245,
+  level: 3,
+  streak: 5,
+  lastActive: new Date().toISOString(),
+};
+
+export const mockGoals: Goal[] = [
+  {
+    id: "goal1",
+    title: "Start a business",
+    dueDate: "2024-08-31",
+    progress: 35,
+    timeframe: "1year",
+    tasks: ["task1", "task3"],
+  },
+  {
+    id: "goal2",
+    title: "Write a book",
+    dueDate: "2024-12-15",
+    progress: 20,
+    timeframe: "1year",
+    tasks: ["task2"],
+  },
+  {
+    id: "goal3",
+    title: "Learn Italian",
+    dueDate: "2025-06-30",
+    progress: 10,
+    timeframe: "1year",
+    tasks: ["task4"],
+  },
+  {
+    id: "goal4",
+    title: "Run a marathon",
+    dueDate: "2025-04-15",
+    progress: 5,
+    timeframe: "1year",
+    tasks: [],
+  },
+];
+
+export const mockTasks: Task[] = [
+  {
+    id: "task1",
+    title: "Research market opportunities",
+    status: "inProgress",
+    isHighImpact: true,
+    isCompleted: false,
+    goalId: "goal1",
+    xpReward: 15,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "task2",
+    title: "Write chapter outline",
+    status: "open",
+    isHighImpact: true,
+    isCompleted: false,
+    goalId: "goal2",
+    xpReward: 15,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "task3",
+    title: "Create business plan",
+    status: "open",
+    isHighImpact: false,
+    isCompleted: false,
+    goalId: "goal1",
+    xpReward: 10,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "task4",
+    title: "Complete first language lesson",
+    status: "open",
+    isHighImpact: false,
+    isCompleted: false,
+    goalId: "goal3",
+    xpReward: 10,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "task5",
+    title: "Read for 30 mins",
+    status: "open",
+    isHighImpact: true,
+    isCompleted: false,
+    xpReward: 15,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "task6",
+    title: "Study AI Engineering",
+    status: "open",
+    isHighImpact: true,
+    isCompleted: false,
+    xpReward: 15,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "task7",
+    title: "Meditate for 30 mins",
+    status: "open",
+    isHighImpact: true,
+    isCompleted: false,
+    xpReward: 15,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "task8",
+    title: "Task A - tied to Goal X",
+    status: "open",
+    isHighImpact: false,
+    isCompleted: false,
+    xpReward: 5,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "task9",
+    title: "Task B - tied to Goal Y",
+    status: "open",
+    isHighImpact: false,
+    isCompleted: false,
+    xpReward: 5,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "task10",
+    title: "Done - tied D - completed today",
+    status: "done",
+    isHighImpact: false,
+    isCompleted: true,
+    xpReward: 5,
+    completedAt: new Date().toISOString(),
+    createdAt: new Date(Date.now() - 86400000).toISOString(),
+  },
+];
+
+export const mockJournalEntries: JournalEntry[] = [
+  {
+    id: "entry1",
+    date: new Date().toISOString(),
+    content: "Today was a productive day. I made progress on my business plan and completed my daily meditation.",
+    accomplishments: "Finished business research, meditated for 30 minutes",
+    blockers: "Struggled with focus in the afternoon",
+    gratitude: "Grateful for supportive friends and family",
+    valueServed: "Helped a colleague with their project",
+    xpEarned: 10,
+  },
+  {
+    id: "entry2",
+    date: new Date(Date.now() - 86400000).toISOString(),
+    content: "Focused on writing today. Made good progress on my book outline.",
+    accomplishments: "Completed chapter 1 outline",
+    blockers: "Writer's block in the evening",
+    gratitude: "Grateful for a quiet workspace",
+    valueServed: "Shared writing tips with a friend",
+    xpEarned: 10,
+  },
+  {
+    id: "entry3",
+    date: new Date(Date.now() - 172800000).toISOString(),
+    content: "Started learning Italian today! The first lesson was challenging but fun.",
+    accomplishments: "Completed first Italian lesson",
+    blockers: "Pronunciation is difficult",
+    gratitude: "Grateful for learning resources",
+    valueServed: "Encouraged a friend to start learning a language too",
+    xpEarned: 10,
+  },
+];
+
+export const mockCoachMessages = [
+  {
+    id: "msg1",
+    sender: "coach",
+    content: "Welcome to DIGM! I'm your personal growth coach. How can I help you today?",
+    timestamp: new Date(Date.now() - 3600000).toISOString(),
+  },
+  {
+    id: "msg2",
+    sender: "user",
+    content: "I'm struggling with procrastination on my book writing goal.",
+    timestamp: new Date(Date.now() - 3500000).toISOString(),
+  },
+  {
+    id: "msg3",
+    sender: "coach",
+    content: "Procrastination often comes from feeling overwhelmed. Try breaking your writing into smaller 25-minute sessions using the Pomodoro Technique. What specific chapter are you working on?",
+    timestamp: new Date(Date.now() - 3400000).toISOString(),
+  },
+];
+
+export const coachSuggestions = [
+  "Give me a focus tip today",
+  "Help me overcome procrastination",
+  "How can I make progress on my goals?",
+  "I need motivation for my tasks",
+];

@@ -1,6 +1,9 @@
 import React, { useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View, GestureResponderEvent } from "react-native";
-import { Edit, Pin, PinOff, Eye } from 'lucide-react-native';
+import Edit from 'lucide-react-native/dist/esm/icons/edit';
+import Pin from 'lucide-react-native/dist/esm/icons/pin';
+import PinOff from 'lucide-react-native/dist/esm/icons/pin-off';
+import Eye from 'lucide-react-native/dist/esm/icons/eye';
 import colors from "@/constants/colors";
 import { Goal } from "@/types";
 import { useDigmStore } from "@/hooks/useDigmStore";

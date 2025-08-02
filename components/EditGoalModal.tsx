@@ -19,6 +19,25 @@ import { Goal, Task } from '@/types';
 import { useDigmStore } from '@/hooks/useDigmStore';
 import SmartGoalTemplate from './SmartGoalTemplate';
 
+function sanitizeTask(t: Partial<Task>, goalId: string): Task {
+  return {
+    id: typeof t.id === 'string' ? t.id : `task${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    title: t.title || '',
+    goalId,
+    status: 'open',
+    isHighImpact: !!t.isHighImpact,
+    isCompleted: !!t.isCompleted,
+    xpReward: t.xpReward ?? 5,
+    createdAt: typeof t.createdAt === 'string' ? t.createdAt : new Date().toISOString(),
+    completedAt:
+      t.isCompleted && typeof t.completedAt === 'string'
+        ? t.completedAt
+        : t.isCompleted
+        ? new Date().toISOString()
+        : undefined,
+  };
+}
+
 interface EditGoalModalProps {
   visible: boolean;
   onClose: () => void;
@@ -72,34 +91,14 @@ export default function EditGoalModal({
       setGoalTasks(associatedTasks);
     } else {
       setGoalTasks([
-        {
-          id: '',
-          title: '',
-          goalId: goal.id,
-          status: 'open',
-          isHighImpact: false,
-          isCompleted: false,
-          xpReward: 5,
-          createdAt: new Date().toISOString(),
-        },
+        sanitizeTask({}, goal.id),
       ]);
     }
   }, [goal, tasks, visible]);
 
   const handleAddTask = () => {
-    setGoalTasks(prev => [
-      ...prev,
-      {
-        id: '',
-        title: '',
-        goalId: goal?.id || '',
-        status: 'open',
-        isHighImpact: false,
-        isCompleted: false,
-        xpReward: 5,
-        createdAt: new Date().toISOString(),
-      },
-    ]);
+    if (!goal) return;
+    setGoalTasks(prev => [...prev, sanitizeTask({}, goal.id)]);
   };
 
   const handleRemoveTask = (index: number) => {
@@ -142,13 +141,7 @@ export default function EditGoalModal({
 
     const validTasks: Task[] = goalTasks
       .filter(t => t.title.trim())
-      .map(task => ({
-        ...task,
-        id: task.id || `task${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        goalId: goal.id,
-        createdAt: task.createdAt || new Date().toISOString(),
-        completedAt: task.isCompleted ? task.completedAt || new Date().toISOString() : undefined,
-      }));
+      .map(t => sanitizeTask(t, goal.id));
 
     const updatedGoal: Goal = {
       ...goal,
@@ -172,14 +165,8 @@ export default function EditGoalModal({
         style: 'destructive',
         onPress: () => {
           const id = goal.id;
-          console.log('Deleting goal:', id);
-          if (onDelete) {
-            console.log('Using onDelete prop to delete goal');
-            onDelete(id);
-          } else {
-            console.log('Using deleteGoal from store');
-            deleteGoal(id);
-          }
+          if (onDelete) onDelete(id);
+          else deleteGoal(id);
           onClose();
         },
       },
@@ -245,7 +232,7 @@ export default function EditGoalModal({
                     placeholderTextColor={colors.textSecondary}
                   />
                   <TouchableOpacity onPress={() => handleRemoveTask(index)}>
-                    <Trash color={colors.error} size={20} /> {/* ✅ Fixed icon */}
+                    <Trash color={colors.error} size={20} />
                   </TouchableOpacity>
                 </View>
                 <TouchableOpacity
@@ -297,22 +284,7 @@ export default function EditGoalModal({
           initialGoal={goal}
           onSave={(updatedGoalData, updatedTasksData) => {
             const updatedGoal: Goal = { ...goal, ...updatedGoalData };
-            const updatedTasks: Task[] = updatedTasksData.map((t) => ({
-              id: typeof t.id === 'string' ? t.id : `task${Date.now()}-${Math.random().toString(36).slice(2)}`,
-              title: t.title || '',
-              goalId: goal.id,
-              status: 'open',
-              isHighImpact: !!t.isHighImpact,
-              isCompleted: !!t.isCompleted,
-              xpReward: t.xpReward ?? 5,
-              createdAt: typeof t.createdAt === 'string' ? t.createdAt : new Date().toISOString(),
-              completedAt:
-                t.isCompleted && typeof t.completedAt === 'string'
-                  ? t.completedAt
-                  : t.isCompleted
-                  ? new Date().toISOString()
-                  : undefined,
-            }));
+            const updatedTasks: Task[] = updatedTasksData.map(t => sanitizeTask(t, goal.id));
             onSave(updatedGoal, updatedTasks);
             setSmartGoalModalVisible(false);
           }}

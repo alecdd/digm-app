@@ -11,8 +11,7 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import { X, Trash2 } from 'lucide-react-native';
-import { Plus } from '@/lib/icons';
+import { X, Trash2, Plus } from 'lucide-react-native';
 import colors from '@/constants/colors';
 import { Goal, Task } from '@/types';
 import { useDigmStore } from '@/hooks/useDigmStore';
@@ -173,8 +172,10 @@ export default function EditGoalModal({
           const id = goal.id;
           console.log('Deleting goal:', id);
           if (onDelete) {
+            console.log('Using onDelete prop to delete goal');
             onDelete(id);
           } else {
+            console.log('Using deleteGoal from store');
             deleteGoal(id);
           }
           onClose();

@@ -1,6 +1,6 @@
 import React, { useCallback } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
-import { useDigmStore, useHighImpactTasks } from "@/hooks/useDigmStore";
+import { useDigmStore } from "@/hooks/useDigmStore";
 import QuoteCard from "@/components/QuoteCard";
 import VisionSnapshot from "@/components/VisionSnapshot";
 import FocusGoals from "@/components/FocusGoals";
@@ -10,8 +10,7 @@ import { Task } from "@/types";
 import colors from "@/constants/colors";
 
 export default function HomeScreen() {
-  const { userProfile, quote, tasksByStatus, updateTask } = useDigmStore();
-  const highImpactTasks = useHighImpactTasks();
+  const { userProfile, quote, tasksByStatus, updateTask, highImpactTasks } = useDigmStore();
 
   const handleToggleTask = useCallback((task: Task) => {
     const updatedTask = {

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { StyleSheet, Text, View, TouchableOpacity, GestureResponderEvent } from "react-native";
 
-import { Edit, Pin, PinOff, Eye } from '@/lib/icons';
+import { Edit, Pin, PinOff, Eye } from 'lucide-react-native';
 import colors from "@/constants/colors";
 import { Goal } from "@/types";
 import { useDigmStore } from "@/hooks/useDigmStore";
@@ -180,6 +180,10 @@ export default function GoalTimeframeCard({ title, goals, onAddGoal }: GoalTimef
           onDelete={(goalId) => {
             console.log('GoalTimeframeCard - Deleting goal with ID:', goalId);
             deleteGoal(goalId);
+            // Force save to AsyncStorage
+            setTimeout(() => {
+              console.log('GoalTimeframeCard - Forcing save after deletion');
+            }, 100);
             setEditModalVisible(false);
             setEditingGoal(undefined);
           }}

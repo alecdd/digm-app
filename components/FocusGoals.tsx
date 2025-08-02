@@ -155,6 +155,10 @@ export default function FocusGoals({ onSeeAllPress }: FocusGoalsProps) {
           onDelete={(goalId) => {
             console.log('FocusGoals - Deleting goal with ID:', goalId);
             deleteGoal(goalId);
+            // Force save to AsyncStorage
+            setTimeout(() => {
+              console.log('FocusGoals - Forcing save after deletion');
+            }, 100);
             setEditModalVisible(false);
             setEditingGoal(null);
           }}

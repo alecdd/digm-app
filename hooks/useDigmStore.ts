@@ -348,12 +348,28 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
       return newPinnedGoals;
     });
     
-    // Force save to AsyncStorage after deletion
-    setTimeout(() => {
-      console.log('useDigmStore - Forcing save to AsyncStorage after goal deletion');
+    // Force immediate save to AsyncStorage after deletion
+    try {
+      // Directly save the updated state to AsyncStorage
+      const saveImmediately = async () => {
+        console.log('useDigmStore - Immediate save to AsyncStorage after goal deletion');
+        await AsyncStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(goals.filter(goal => goal.id !== goalId)));
+        await AsyncStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(tasks.filter(task => task.goalId !== goalId)));
+        await AsyncStorage.setItem('digm_pinned_goals', JSON.stringify(pinnedGoalIds.filter(id => id !== goalId)));
+      };
+      saveImmediately();
+      
+      // Also use the regular saveData with a delay as a backup
+      setTimeout(() => {
+        console.log('useDigmStore - Forcing save to AsyncStorage after goal deletion');
+        saveData();
+      }, 100);
+    } catch (error) {
+      console.error('Error during immediate save after goal deletion:', error);
+      // Fallback to regular save
       saveData();
-    }, 100);
-  }, [saveData]);
+    }
+  }, [saveData, goals, tasks, pinnedGoalIds]);
 
   return {
     userProfile,

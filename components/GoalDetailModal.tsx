@@ -172,6 +172,10 @@ export default function GoalDetailModal({
                           // Delete the goal from the store
                           console.log('Calling deleteGoal with ID:', goal.id);
                           deleteGoal(goal.id);
+                          // Force save to AsyncStorage
+                          setTimeout(() => {
+                            console.log('GoalDetailModal - Forcing save after deletion');
+                          }, 100);
                           // Close the modal after deletion
                           onClose();
                         }

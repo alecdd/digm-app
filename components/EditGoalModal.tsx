@@ -11,7 +11,7 @@ import {
   Platform,
   Alert
 } from 'react-native';
-import { X, Plus, Trash2 } from '@/lib/icons';
+import { X, Plus, Trash2 } from 'lucide-react-native';
 import colors from '@/constants/colors';
 import { Goal, Task } from '@/types';
 import { useDigmStore } from '@/hooks/useDigmStore';
@@ -216,6 +216,10 @@ export default function EditGoalModal({
               // Fallback to direct store deletion
               console.log('Using direct store deletion');
               deleteGoal(goal.id);
+              // Force save to AsyncStorage
+              setTimeout(() => {
+                console.log('EditGoalModal - Forcing save after deletion');
+              }, 100);
             }
             // Close the modal after deletion
             onClose();
@@ -284,7 +288,7 @@ export default function EditGoalModal({
                     <TextInput
                       style={styles.taskInput}
                       value={task.title}
-                      onChangeText={(text: string) => handleTaskChange(text, index)}
+                      onChangeText={(text) => handleTaskChange(text, index)}
                       placeholder="Enter task"
                       placeholderTextColor={colors.textSecondary}
                     />

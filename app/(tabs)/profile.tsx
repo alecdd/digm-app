@@ -12,7 +12,7 @@ import { Edit2 } from "lucide-react-native";
 import colors from "@/constants/colors";
 import { useDigmStore } from "@/hooks/useDigmStore";
 import GoalTimeframeCard from "@/components/GoalTimeframeCard";
-import AddGoalModal from "@/components/AddGoalModal";
+import SmartGoalTemplate from "@/components/SmartGoalTemplate";
 import GoalCompletionEffect from "@/components/GoalCompletionEffect";
 import { Goal } from "@/types";
 
@@ -20,7 +20,7 @@ export default function ProfileScreen() {
   const { userProfile, goals, updateVision, addGoal, completedGoal, clearCompletedGoal } = useDigmStore();
   const [isEditingVision, setIsEditingVision] = useState(false);
   const [visionText, setVisionText] = useState(userProfile.vision);
-  const [addGoalModalVisible, setAddGoalModalVisible] = useState(false);
+  const [smartGoalModalVisible, setSmartGoalModalVisible] = useState(false);
   const [selectedTimeframe, setSelectedTimeframe] = useState<Goal["timeframe"]>("1week");
 
   const handleSaveVision = useCallback(() => {
@@ -32,7 +32,7 @@ export default function ProfileScreen() {
 
   const handleAddGoalPress = useCallback((timeframe: Goal["timeframe"]) => {
     setSelectedTimeframe(timeframe);
-    setAddGoalModalVisible(true);
+    setSmartGoalModalVisible(true);
   }, []);
   
   const handleAddGoal = useCallback((goalData: Omit<Goal, "id" | "progress" | "tasks">, tasks: any[]) => {
@@ -126,11 +126,11 @@ export default function ProfileScreen() {
         />
       </View>
       
-      {/* Add Goal Modal */}
-      <AddGoalModal
-        visible={addGoalModalVisible}
-        onClose={() => setAddGoalModalVisible(false)}
-        onAddGoal={handleAddGoal}
+      {/* SMART Goal Template Modal */}
+      <SmartGoalTemplate
+        visible={smartGoalModalVisible}
+        onClose={() => setSmartGoalModalVisible(false)}
+        onSave={handleAddGoal}
         timeframe={selectedTimeframe}
       />
       

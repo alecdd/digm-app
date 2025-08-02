@@ -8,7 +8,7 @@ import {
   View 
 } from "react-native";
 import { Stack } from "expo-router";
-import { Edit2 } from "lucide-react-native";
+import { Edit } from "lucide-react-native";
 import colors from "@/constants/colors";
 import { useDigmStore } from "@/hooks/useDigmStore";
 import GoalTimeframeCard from "@/components/GoalTimeframeCard";
@@ -61,7 +61,7 @@ export default function ProfileScreen() {
               onPress={() => setIsEditingVision(true)}
               style={styles.editButton}
             >
-              <Edit2 color={colors.text} size={16} />
+              <Edit color={colors.text} size={16} />
             </TouchableOpacity>
           )}
         </View>

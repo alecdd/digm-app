@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { Edit2, Pin, PinOff, Eye } from "lucide-react-native";
+import { Edit, Pin, PinOff, Eye } from "lucide-react-native";
 import colors from "@/constants/colors";
 import { Goal } from "@/types";
 import { useDigmStore } from "@/hooks/useDigmStore";
@@ -98,7 +98,7 @@ export default function GoalTimeframeCard({ title, goals, onAddGoal }: GoalTimef
                   }}
                   style={styles.actionButton}
                 >
-                  <Edit2 size={16} color={colors.textSecondary} />
+                  <Edit size={16} color={colors.textSecondary} />
                 </TouchableOpacity>
                 <TouchableOpacity 
                   onPress={(e) => {
@@ -157,7 +157,7 @@ export default function GoalTimeframeCard({ title, goals, onAddGoal }: GoalTimef
           setDetailModalVisible(false);
           setViewingGoal(null);
         }}
-        goal={viewingGoal}
+        goal={viewingGoal || undefined}
         onEdit={() => {
           setDetailModalVisible(false);
           if (viewingGoal) {

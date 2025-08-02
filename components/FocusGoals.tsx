@@ -1,18 +1,23 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
-import { ChevronRight, Pin, PinOff } from 'lucide-react-native';
+import { ChevronRight, Pin, PinOff, Edit } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import colors from '@/constants/colors';
 import { useDigmStore, useFocusGoals } from '@/hooks/useDigmStore';
+import GoalDetailModal from './GoalDetailModal';
+import EditGoalModal from './EditGoalModal';
 
 interface FocusGoalsProps {
   onSeeAllPress?: () => void;
 }
 
 export default function FocusGoals({ onSeeAllPress }: FocusGoalsProps) {
+  const [selectedGoal, setSelectedGoal] = useState<string | null>(null);
+  const [editingGoal, setEditingGoal] = useState<string | null>(null);
+  const [editModalVisible, setEditModalVisible] = useState(false);
   const router = useRouter();
   const focusGoals = useFocusGoals();
-  const { pinnedGoalIds, togglePinGoal } = useDigmStore();
+  const { pinnedGoalIds, togglePinGoal, updateGoal, updateTask } = useDigmStore();
 
   const handleSeeAll = () => {
     if (onSeeAllPress) {
@@ -54,19 +59,39 @@ export default function FocusGoals({ onSeeAllPress }: FocusGoalsProps) {
       </View>
 
       {focusGoals.map((goal) => (
-        <View key={goal.id} style={styles.goalCard}>
+        <TouchableOpacity 
+          key={goal.id} 
+          style={styles.goalCard}
+          onPress={() => setSelectedGoal(goal.id)}
+          activeOpacity={0.7}
+        >
           <View style={styles.goalHeader}>
             <Text style={styles.goalTitle}>{goal.title}</Text>
-            <TouchableOpacity 
-              onPress={() => handleTogglePin(goal.id)}
-              style={styles.pinButton}
-            >
-              {pinnedGoalIds.includes(goal.id) ? (
-                <Pin size={16} color={colors.primary} fill={colors.primary} />
-              ) : (
-                <PinOff size={16} color={colors.textSecondary} />
-              )}
-            </TouchableOpacity>
+            <View style={styles.goalActions}>
+              <TouchableOpacity 
+                onPress={(e) => {
+                  e.stopPropagation(); // Prevent triggering the parent TouchableOpacity
+                  handleTogglePin(goal.id);
+                }}
+                style={styles.actionButton}
+              >
+                {pinnedGoalIds.includes(goal.id) ? (
+                  <Pin size={16} color={colors.primary} fill={colors.primary} />
+                ) : (
+                  <PinOff size={16} color={colors.textSecondary} />
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity 
+                onPress={(e) => {
+                  e.stopPropagation(); // Prevent triggering the parent TouchableOpacity
+                  setEditingGoal(goal.id);
+                  setEditModalVisible(true);
+                }}
+                style={styles.actionButton}
+              >
+                <Edit size={16} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
           </View>
 
           <View style={styles.progressContainer}>
@@ -95,8 +120,40 @@ export default function FocusGoals({ onSeeAllPress }: FocusGoalsProps) {
               <Text style={styles.statLabel}>Due Date</Text>
             </View>
           </View>
-        </View>
+        </TouchableOpacity>
       ))}
+      
+      {selectedGoal && (
+        <GoalDetailModal
+          visible={!!selectedGoal}
+          onClose={() => setSelectedGoal(null)}
+          goal={focusGoals.find(g => g.id === selectedGoal)}
+        />
+      )}
+      
+      {editingGoal && (
+        <EditGoalModal
+          visible={editModalVisible}
+          onClose={() => {
+            setEditModalVisible(false);
+            setEditingGoal(null);
+          }}
+          goal={focusGoals.find(g => g.id === editingGoal) || null}
+          onSave={(updatedGoal, updatedTasks) => {
+            // Update the goal
+            updateGoal(updatedGoal);
+            
+            // Update or add tasks
+            updatedTasks.forEach(task => {
+              updateTask(task);
+            });
+            
+            // Close the edit modal
+            setEditModalVisible(false);
+            setEditingGoal(null);
+          }}
+        />
+      )}
     </View>
   );
 }

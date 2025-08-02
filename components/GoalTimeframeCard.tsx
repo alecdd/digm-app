@@ -7,6 +7,7 @@ import { Goal } from "@/types";
 import { useDigmStore } from "@/hooks/useDigmStore";
 import SmartGoalTemplate from "./SmartGoalTemplate";
 import GoalDetailModal from "./GoalDetailModal";
+import EditGoalModal from "./EditGoalModal";
 
 interface GoalTimeframeCardProps {
   title: string;
@@ -15,15 +16,16 @@ interface GoalTimeframeCardProps {
 }
 
 export default function GoalTimeframeCard({ title, goals, onAddGoal }: GoalTimeframeCardProps) {
-  const { updateGoal, pinnedGoalIds, togglePinGoal, addGoal } = useDigmStore();
+  const { updateGoal, pinnedGoalIds, togglePinGoal, addGoal, updateTask } = useDigmStore();
   const [editingGoal, setEditingGoal] = useState<Goal | undefined>(undefined);
   const [viewingGoal, setViewingGoal] = useState<Goal | undefined>(undefined);
   const [smartGoalModalVisible, setSmartGoalModalVisible] = useState(false);
+  const [editModalVisible, setEditModalVisible] = useState(false);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   
   const handleEditGoal = (goal: Goal) => {
     setEditingGoal(goal);
-    setSmartGoalModalVisible(true);
+    setEditModalVisible(true);
   };
   
   const handleViewGoal = (goal: Goal) => {
@@ -141,7 +143,7 @@ export default function GoalTimeframeCard({ title, goals, onAddGoal }: GoalTimef
         <Text style={styles.addButtonText}>+ Add Goal</Text>
       </TouchableOpacity>
       
-      {/* SMART Goal Template Modal */}
+      {/* SMART Goal Template Modal for new goals */}
       <SmartGoalTemplate
         visible={smartGoalModalVisible}
         onClose={() => {
@@ -149,9 +151,34 @@ export default function GoalTimeframeCard({ title, goals, onAddGoal }: GoalTimef
           setEditingGoal(undefined);
         }}
         onSave={handleSaveGoal}
-        timeframe={editingGoal?.timeframe || getTimeframeFromTitle()}
-        initialGoal={editingGoal}
+        timeframe={getTimeframeFromTitle()}
+        initialGoal={undefined}
       />
+      
+      {/* Edit Goal Modal for existing goals */}
+      {editingGoal && (
+        <EditGoalModal
+          visible={editModalVisible}
+          onClose={() => {
+            setEditModalVisible(false);
+            setEditingGoal(undefined);
+          }}
+          goal={editingGoal}
+          onSave={(updatedGoal, updatedTasks) => {
+            // Update the goal
+            updateGoal(updatedGoal);
+            
+            // Update or add tasks
+            updatedTasks.forEach(task => {
+              updateTask(task);
+            });
+            
+            // Close the edit modal
+            setEditModalVisible(false);
+            setEditingGoal(undefined);
+          }}
+        />
+      )}
       
       {/* Goal Detail Modal */}
       <GoalDetailModal
@@ -161,19 +188,6 @@ export default function GoalTimeframeCard({ title, goals, onAddGoal }: GoalTimef
           setViewingGoal(undefined);
         }}
         goal={viewingGoal}
-        onEdit={() => {
-          // First close the detail modal
-          setDetailModalVisible(false);
-          
-          // Then set the editing goal and open the edit modal
-          // Use setTimeout to ensure the detail modal closes first
-          setTimeout(() => {
-            if (viewingGoal) {
-              setEditingGoal(viewingGoal);
-              setSmartGoalModalVisible(true);
-            }
-          }, 100);
-        }}
       />
     </View>
   );

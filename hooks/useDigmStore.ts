@@ -1,22 +1,22 @@
+// hooks/useDigmStore.ts
+
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useQuery, useMutation } from "@tanstack/react-query";
 import createContextHook from "@nkzw/create-context-hook";
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Goal, JournalEntry, Task, UserProfile, TaskStatus } from "@/types";
-import { Platform } from "react-native";
-import { mockGoals, mockJournalEntries, mockTasks, mockUserProfile } from "@/mocks/data";
+import { Goal, JournalEntry, Task, TaskStatus, UserProfile } from "@/types";
 import { getRandomQuote } from "@/constants/quotes";
 import { getLevelInfo } from "@/constants/colors";
+import { mockGoals, mockJournalEntries, mockTasks, mockUserProfile } from "@/mocks/data";
 
 const STORAGE_KEYS = {
   USER_PROFILE: "digm_user_profile",
   GOALS: "digm_goals",
   TASKS: "digm_tasks",
   JOURNAL_ENTRIES: "digm_journal_entries",
+  PINNED_GOALS: "digm_pinned_goals",
 };
 
 export const [DigmProvider, useDigmStore] = createContextHook(() => {
-  // State
   const [userProfile, setUserProfile] = useState<UserProfile>(mockUserProfile);
   const [goals, setGoals] = useState<Goal[]>(mockGoals);
   const [tasks, setTasks] = useState<Task[]>(mockTasks);
@@ -25,121 +25,89 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
   const [completedGoal, setCompletedGoal] = useState<Goal | null>(null);
   const [pinnedGoalIds, setPinnedGoalIds] = useState<string[]>([]);
 
-  // Load data from AsyncStorage
   const loadData = useCallback(async () => {
     try {
-      const storedUserProfile = await AsyncStorage.getItem(STORAGE_KEYS.USER_PROFILE);
-      const storedGoals = await AsyncStorage.getItem(STORAGE_KEYS.GOALS);
-      const storedTasks = await AsyncStorage.getItem(STORAGE_KEYS.TASKS);
-      const storedJournalEntries = await AsyncStorage.getItem(STORAGE_KEYS.JOURNAL_ENTRIES);
-      const storedPinnedGoals = await AsyncStorage.getItem('digm_pinned_goals');
+      const [storedUserProfile, storedGoals, storedTasks, storedJournalEntries, storedPinned] =
+        await Promise.all([
+          AsyncStorage.getItem(STORAGE_KEYS.USER_PROFILE),
+          AsyncStorage.getItem(STORAGE_KEYS.GOALS),
+          AsyncStorage.getItem(STORAGE_KEYS.TASKS),
+          AsyncStorage.getItem(STORAGE_KEYS.JOURNAL_ENTRIES),
+          AsyncStorage.getItem(STORAGE_KEYS.PINNED_GOALS),
+        ]);
 
       if (storedUserProfile) setUserProfile(JSON.parse(storedUserProfile));
       if (storedGoals) setGoals(JSON.parse(storedGoals));
       if (storedTasks) setTasks(JSON.parse(storedTasks));
       if (storedJournalEntries) setJournalEntries(JSON.parse(storedJournalEntries));
-      if (storedPinnedGoals) setPinnedGoalIds(JSON.parse(storedPinnedGoals));
-    } catch (error) {
-      console.error("Error loading data from AsyncStorage:", error);
+      if (storedPinned) setPinnedGoalIds(JSON.parse(storedPinned));
+    } catch (err) {
+      console.error("Error loading data:", err);
     }
   }, []);
 
-  // Save data to AsyncStorage
   const saveData = useCallback(async () => {
     try {
-      await AsyncStorage.setItem(STORAGE_KEYS.USER_PROFILE, JSON.stringify(userProfile));
-      await AsyncStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(goals));
-      await AsyncStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(tasks));
-      await AsyncStorage.setItem(STORAGE_KEYS.JOURNAL_ENTRIES, JSON.stringify(journalEntries));
-      await AsyncStorage.setItem('digm_pinned_goals', JSON.stringify(pinnedGoalIds));
-    } catch (error) {
-      console.error("Error saving data to AsyncStorage:", error);
+      await Promise.all([
+        AsyncStorage.setItem(STORAGE_KEYS.USER_PROFILE, JSON.stringify(userProfile)),
+        AsyncStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(goals)),
+        AsyncStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(tasks)),
+        AsyncStorage.setItem(STORAGE_KEYS.JOURNAL_ENTRIES, JSON.stringify(journalEntries)),
+        AsyncStorage.setItem(STORAGE_KEYS.PINNED_GOALS, JSON.stringify(pinnedGoalIds)),
+      ]);
+    } catch (err) {
+      console.error("Error saving data:", err);
     }
   }, [userProfile, goals, tasks, journalEntries, pinnedGoalIds]);
 
-  // Load data on mount
   useEffect(() => {
     loadData();
-    // Refresh quote daily
     setQuote(getRandomQuote());
   }, [loadData]);
 
-  // Save data when state changes
   useEffect(() => {
     saveData();
-  }, [userProfile, goals, tasks, journalEntries, pinnedGoalIds, saveData]);
+  }, [userProfile, goals, tasks, journalEntries, pinnedGoalIds]);
 
-  // Check for daily streak
   useEffect(() => {
-    const checkStreak = async () => {
-      const today = new Date().toISOString().split("T")[0];
-      const lastActive = userProfile.lastActive.split("T")[0];
+    const today = new Date().toISOString().split("T")[0];
+    const last = userProfile.lastActive.split("T")[0];
 
-      if (today !== lastActive) {
-        const updatedProfile = {
-          ...userProfile,
-          lastActive: new Date().toISOString(),
-        };
+    if (today !== last) {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().split("T")[0];
 
-        // If last active was yesterday, increase streak
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-        const yesterdayStr = yesterday.toISOString().split("T")[0];
+      const newProfile = {
+        ...userProfile,
+        lastActive: new Date().toISOString(),
+        streak: last === yesterdayStr ? userProfile.streak + 1 : 1,
+        xp: last === yesterdayStr ? userProfile.xp + 3 : userProfile.xp,
+      };
 
-        if (lastActive === yesterdayStr) {
-          updatedProfile.streak += 1;
-          updatedProfile.xp += 3; // Streak bonus
-        } else {
-          // Reset streak if not consecutive
-          updatedProfile.streak = 1;
-        }
-
-        setUserProfile(updatedProfile);
-      }
-    };
-
-    checkStreak();
+      setUserProfile(newProfile);
+    }
   }, [userProfile]);
 
-  // Task mutations
-  const updateTask = useCallback((updatedTask: Task) => {
-    console.log('useDigmStore - updateTask called with task:', updatedTask);
-    const previousTask = tasks.find(t => t.id === updatedTask.id);
-    
-    setTasks(currentTasks => {
-      console.log('useDigmStore - Updating task with ID:', updatedTask.id);
-      const newTasks = currentTasks.map(task => 
-        task.id === updatedTask.id ? updatedTask : task
-      );
-      return newTasks;
-    });
+  const updateTask = useCallback((updated: Task) => {
+    const prev = tasks.find(t => t.id === updated.id);
 
-    // Update XP if task is completed
-    if (updatedTask.status === "done" && previousTask?.status !== "done") {
-      const xpGained = updatedTask.xpReward;
-      
-      setUserProfile(current => {
-        const newXP = current.xp + xpGained;
-        const newLevelInfo = getLevelInfo(newXP);
-        
-        return {
-          ...current,
-          xp: newXP,
-          level: newLevelInfo.level
-        };
+    setTasks(ts => ts.map(t => (t.id === updated.id ? updated : t)));
+
+    if (updated.status === "done" && prev?.status !== "done") {
+      setUserProfile(up => {
+        const xp = up.xp + updated.xpReward;
+        const level = getLevelInfo(xp).level;
+        return { ...up, xp, level };
       });
 
-      // Update goal progress
-      if (updatedTask.goalId) {
-        setGoals(currentGoals => 
-          currentGoals.map(goal => {
-            if (goal.id === updatedTask.goalId) {
+      if (updated.goalId) {
+        setGoals(gs =>
+          gs.map(goal => {
+            if (goal.id === updated.goalId) {
               const goalTasks = tasks.filter(t => t.goalId === goal.id);
-              const completedTasks = goalTasks.filter(t => 
-                t.id === updatedTask.id ? true : t.status === "done"
-              );
-              const progress = Math.round((completedTasks.length / goalTasks.length) * 100);
-              
+              const doneTasks = goalTasks.filter(t => t.id === updated.id || t.status === "done");
+              const progress = Math.round((doneTasks.length / goalTasks.length) * 100);
               return { ...goal, progress };
             }
             return goal;
@@ -149,227 +117,108 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
     }
   }, [tasks]);
 
-  const moveTask = useCallback((taskId: string, newStatus: TaskStatus) => {
-    const task = tasks.find(t => t.id === taskId);
-    if (!task) return;
-
-    const updatedTask: Task = {
-      ...task,
-      status: newStatus,
-      isCompleted: newStatus === "done",
-      completedAt: newStatus === "done" ? new Date().toISOString() : undefined,
-    };
-
-    updateTask(updatedTask);
+  const moveTask = useCallback((id: string, status: TaskStatus) => {
+    const t = tasks.find(t => t.id === id);
+    if (!t) return;
+    updateTask({ ...t, status, isCompleted: status === "done", completedAt: status === "done" ? new Date().toISOString() : undefined });
   }, [tasks, updateTask]);
 
-  const addTask = useCallback((newTask: Omit<Task, "id" | "createdAt">) => {
-    const task: Task = {
-      ...newTask,
-      id: `task${Date.now()}`,
-      createdAt: new Date().toISOString(),
-    };
-    
-    setTasks(current => [...current, task]);
+  const addTask = useCallback((t: Omit<Task, "id" | "createdAt">) => {
+    const task: Task = { ...t, id: `task${Date.now()}`, createdAt: new Date().toISOString() };
+    setTasks(ts => [...ts, task]);
     return task;
   }, []);
 
-  // Goal mutations
-  const updateGoal = useCallback((updatedGoal: Goal) => {
-    console.log('useDigmStore - updateGoal called with goal:', updatedGoal);
-    
-    // Check if goal is newly completed (100%)
-    const existingGoal = goals.find(g => g.id === updatedGoal.id);
-    const isNewlyCompleted = existingGoal && existingGoal.progress < 100 && updatedGoal.progress === 100;
-    
-    setGoals(current => {
-      console.log('useDigmStore - Updating goal with ID:', updatedGoal.id);
-      return current.map(goal => goal.id === updatedGoal.id ? updatedGoal : goal);
-    });
-    
-    // If goal is newly completed, award XP and show completion effect
-    if (isNewlyCompleted) {
-      // Award 100 XP for completing a goal
-      setUserProfile(current => {
-        const newXP = current.xp + 100;
-        const newLevelInfo = getLevelInfo(newXP);
-        
-        return {
-          ...current,
-          xp: newXP,
-          level: newLevelInfo.level
-        };
+  const updateGoal = useCallback((updated: Goal) => {
+    const existing = goals.find(g => g.id === updated.id);
+    const isCompleted = existing && existing.progress < 100 && updated.progress === 100;
+
+    setGoals(gs => gs.map(g => g.id === updated.id ? updated : g));
+
+    if (isCompleted) {
+      setUserProfile(up => {
+        const xp = up.xp + 100;
+        const level = getLevelInfo(xp).level;
+        return { ...up, xp, level };
       });
-      
-      // Set completed goal to trigger effect
-      setCompletedGoal(updatedGoal);
-      
-      // Clear completed goal after 5 seconds
-      setTimeout(() => {
-        setCompletedGoal(null);
-      }, 5000);
+
+      setCompletedGoal(updated);
+      setTimeout(() => setCompletedGoal(null), 5000);
     }
   }, [goals]);
 
-  const addGoal = useCallback((newGoal: Omit<Goal, "id" | "progress" | "tasks">, initialTasks: Omit<Task, "id" | "createdAt" | "goalId">[] = []) => {
-    const goalId = `goal${Date.now()}`;
-    
-    // Create the goal
-    const goal: Goal = {
-      ...newGoal,
-      id: goalId,
-      progress: 0,
-      tasks: [],
-    };
-    
-    // Add the goal
-    setGoals(current => [...current, goal]);
-    
-    // Create tasks for this goal if provided
-    if (initialTasks.length > 0) {
-      const newTasks = initialTasks.map(taskData => {
-        const task: Task = {
-          ...taskData,
-          id: `task${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          createdAt: new Date().toISOString(),
-          goalId,
-        };
-        return task;
-      });
-      
-      // Add the tasks
-      setTasks(current => [...current, ...newTasks]);
-      
-      // Update goal with task IDs
-      const updatedGoal = {
-        ...goal,
-        tasks: newTasks.map(t => t.id),
-      };
-      
-      setGoals(current => 
-        current.map(g => g.id === goalId ? updatedGoal : g)
-      );
-      
-      return updatedGoal;
+  const addGoal = useCallback((g: Omit<Goal, "id" | "progress" | "tasks">, initialTasks: Omit<Task, "id" | "createdAt" | "goalId">[] = []) => {
+    const id = `goal${Date.now()}`;
+    const goal: Goal = { ...g, id, progress: 0, tasks: [] };
+    setGoals(gs => [...gs, goal]);
+
+    if (initialTasks.length) {
+      const newTasks = initialTasks.map(t => ({
+        ...t,
+        id: `task${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        createdAt: new Date().toISOString(),
+        goalId: id,
+      }));
+
+      setTasks(ts => [...ts, ...newTasks]);
+      setGoals(gs => gs.map(g => g.id === id ? { ...g, tasks: newTasks.map(t => t.id) } : g));
     }
-    
+
     return goal;
   }, []);
 
-  // Journal mutations
-  const addJournalEntry = useCallback((entry: Omit<JournalEntry, "id" | "xpEarned">) => {
-    const newEntry: JournalEntry = {
-      ...entry,
-      id: `entry${Date.now()}`,
-      xpEarned: 10, // XP for adding journal entry
-    };
-    
-    setJournalEntries(current => [newEntry, ...current]);
-    
-    // Update XP
-    setUserProfile(current => ({
-      ...current,
-      xp: current.xp + newEntry.xpEarned
-    }));
-    
+  const addJournalEntry = useCallback((e: Omit<JournalEntry, "id" | "xpEarned">) => {
+    const newEntry: JournalEntry = { ...e, id: `entry${Date.now()}`, xpEarned: 10 };
+    setJournalEntries(es => [newEntry, ...es]);
+    setUserProfile(up => ({ ...up, xp: up.xp + newEntry.xpEarned }));
     return newEntry;
   }, []);
 
-  // Update vision
   const updateVision = useCallback((vision: string) => {
-    setUserProfile(current => ({
-      ...current,
-      vision
-    }));
+    setUserProfile(up => ({ ...up, vision }));
   }, []);
 
-  // Computed values
-  const highImpactTasks = useMemo(() => {
-    return tasks.filter(task => task.isHighImpact && !task.isCompleted);
-  }, [tasks]);
-
-  const tasksByStatus = useMemo(() => {
-    return {
-      open: tasks.filter(task => task.status === "open"),
-      inProgress: tasks.filter(task => task.status === "inProgress"),
-      done: tasks.filter(task => task.status === "done"),
-    };
-  }, [tasks]);
-
-  // Level calculation
-  const nextLevelXp = useMemo(() => {
-    return (userProfile.level + 1) * 100;
-  }, [userProfile.level]);
-
-  const xpProgress = useMemo(() => {
-    return (userProfile.xp / nextLevelXp) * 100;
-  }, [userProfile.xp, nextLevelXp]);
-
-  // Pin/unpin goals
-  const togglePinGoal = useCallback((goalId: string) => {
-    setPinnedGoalIds(current => {
-      if (current.includes(goalId)) {
-        return current.filter(id => id !== goalId);
-      } else {
-        // Limit to 3 pinned goals
-        const newPinned = [...current, goalId];
-        return newPinned.slice(-3); // Keep only the 3 most recently pinned
-      }
+  const togglePinGoal = useCallback((id: string) => {
+    setPinnedGoalIds(pinned => {
+      const updated = pinned.includes(id)
+        ? pinned.filter(gid => gid !== id)
+        : [...pinned, id].slice(-3);
+      AsyncStorage.setItem(STORAGE_KEYS.PINNED_GOALS, JSON.stringify(updated));
+      return updated;
     });
   }, []);
 
-  // Delete a goal and its associated tasks
-  const deleteGoal = useCallback((goalId: string) => {
-    console.log('useDigmStore - deleteGoal called with ID:', goalId);
-    
-    // Remove the goal
+  const deleteGoal = useCallback((id: string) => {
     setGoals(current => {
-      console.log('useDigmStore - Filtering goals, removing:', goalId);
-      const newGoals = current.filter(goal => goal.id !== goalId);
-      console.log('useDigmStore - Goals after removal:', newGoals.length);
-      return newGoals;
+      const updated = current.filter(g => g.id !== id);
+      AsyncStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(updated));
+      return updated;
     });
-    
-    // Remove all tasks associated with this goal
+
     setTasks(current => {
-      console.log('useDigmStore - Removing tasks for goal:', goalId);
-      const newTasks = current.filter(task => task.goalId !== goalId);
-      console.log('useDigmStore - Tasks after removal:', newTasks.length);
-      return newTasks;
+      const updated = current.filter(t => t.goalId !== id);
+      AsyncStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(updated));
+      return updated;
     });
-    
-    // Remove from pinned goals if it was pinned
+
     setPinnedGoalIds(current => {
-      if (current.includes(goalId)) {
-        console.log('useDigmStore - Removing goal from pinned goals:', goalId);
-      }
-      const newPinnedGoals = current.filter(id => id !== goalId);
-      console.log('useDigmStore - Pinned goals after removal:', newPinnedGoals.length);
-      return newPinnedGoals;
+      const updated = current.filter(gid => gid !== id);
+      AsyncStorage.setItem(STORAGE_KEYS.PINNED_GOALS, JSON.stringify(updated));
+      return updated;
     });
-    
-    // Force immediate save to AsyncStorage after deletion
-    try {
-      // Directly save the updated state to AsyncStorage
-      const saveImmediately = async () => {
-        console.log('useDigmStore - Immediate save to AsyncStorage after goal deletion');
-        await AsyncStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(goals.filter(goal => goal.id !== goalId)));
-        await AsyncStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(tasks.filter(task => task.goalId !== goalId)));
-        await AsyncStorage.setItem('digm_pinned_goals', JSON.stringify(pinnedGoalIds.filter(id => id !== goalId)));
-      };
-      saveImmediately();
-      
-      // Also use the regular saveData with a delay as a backup
-      setTimeout(() => {
-        console.log('useDigmStore - Forcing save to AsyncStorage after goal deletion');
-        saveData();
-      }, 100);
-    } catch (error) {
-      console.error('Error during immediate save after goal deletion:', error);
-      // Fallback to regular save
-      saveData();
-    }
-  }, [saveData, goals, tasks, pinnedGoalIds]);
+
+    setTimeout(() => saveData(), 250); // backup write
+  }, [saveData]);
+
+  const highImpactTasks = useMemo(() => tasks.filter(t => t.isHighImpact && !t.isCompleted), [tasks]);
+  const tasksByStatus = useMemo(() => ({
+    open: tasks.filter(t => t.status === "open"),
+    inProgress: tasks.filter(t => t.status === "inProgress"),
+    done: tasks.filter(t => t.status === "done"),
+  }), [tasks]);
+
+  const nextLevelXp = useMemo(() => (userProfile.level + 1) * 100, [userProfile.level]);
+  const xpProgress = useMemo(() => (userProfile.xp / nextLevelXp) * 100, [userProfile.xp, nextLevelXp]);
 
   return {
     userProfile,
@@ -377,12 +226,12 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
     tasks,
     journalEntries,
     quote,
+    completedGoal,
+    pinnedGoalIds,
     highImpactTasks,
     tasksByStatus,
     nextLevelXp,
     xpProgress,
-    completedGoal,
-    pinnedGoalIds,
     updateTask,
     moveTask,
     addTask,
@@ -396,87 +245,3 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
     clearCompletedGoal: () => setCompletedGoal(null),
   };
 });
-
-// Custom hooks for specific data needs
-export function useHighImpactTasks() {
-  const { tasks } = useDigmStore();
-  return useMemo(() => {
-    return tasks.filter(task => task.isHighImpact && !task.isCompleted).slice(0, 3);
-  }, [tasks]);
-}
-
-export function useGoalsPreview() {
-  const { goals, pinnedGoalIds, togglePinGoal } = useDigmStore();
-  
-  return useMemo(() => {
-    // If there are pinned goals, show those first
-    if (pinnedGoalIds.length > 0) {
-      const pinnedGoals = goals.filter(goal => pinnedGoalIds.includes(goal.id));
-      
-      // If we have fewer than 3 pinned goals, add some unpinned ones
-      if (pinnedGoals.length < 3) {
-        const unpinnedGoals = goals
-          .filter(goal => !pinnedGoalIds.includes(goal.id))
-          .sort((a, b) => {
-            // Sort by due date (closest first)
-            const dateA = new Date(a.dueDate);
-            const dateB = new Date(b.dueDate);
-            return dateA.getTime() - dateB.getTime();
-          })
-          .slice(0, 3 - pinnedGoals.length);
-        
-        return [...pinnedGoals, ...unpinnedGoals];
-      }
-      
-      return pinnedGoals.slice(0, 3);
-    }
-    
-    // If no pinned goals, show the first 3 goals sorted by due date
-    return goals
-      .sort((a, b) => {
-        const dateA = new Date(a.dueDate);
-        const dateB = new Date(b.dueDate);
-        return dateA.getTime() - dateB.getTime();
-      })
-      .slice(0, 3);
-  }, [goals, pinnedGoalIds]);
-}
-
-export function useFocusGoals() {
-  const { goals, pinnedGoalIds, tasks } = useDigmStore();
-  
-  return useMemo(() => {
-    // Get pinned goals or most urgent goals
-    let focusGoals = [];
-    
-    if (pinnedGoalIds.length > 0) {
-      // Use pinned goals
-      focusGoals = goals
-        .filter(goal => pinnedGoalIds.includes(goal.id))
-        .slice(0, 3);
-    } else {
-      // Use goals with closest due dates
-      focusGoals = [...goals]
-        .sort((a, b) => {
-          const dateA = new Date(a.dueDate);
-          const dateB = new Date(b.dueDate);
-          return dateA.getTime() - dateB.getTime();
-        })
-        .slice(0, 3);
-    }
-    
-    // Enhance goals with task information
-    return focusGoals.map(goal => {
-      const goalTasks = tasks.filter(task => task.goalId === goal.id);
-      const completedTasks = goalTasks.filter(task => task.status === 'done');
-      const totalXP = completedTasks.reduce((sum, task) => sum + task.xpReward, 0);
-      
-      return {
-        ...goal,
-        totalTasks: goalTasks.length,
-        completedTasks: completedTasks.length,
-        earnedXP: totalXP
-      };
-    });
-  }, [goals, pinnedGoalIds, tasks]);
-}

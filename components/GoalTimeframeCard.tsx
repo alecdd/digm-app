@@ -1,6 +1,5 @@
 import React, { useState } from "react";
-import { StyleSheet, Text, View, TouchableOpacity, GestureResponderEvent } from "react-native";
-
+import { StyleSheet, Text, View, TouchableOpacity } from "react-native";
 import { Edit, Pin, PinOff, Eye } from 'lucide-react-native';
 import colors from "@/constants/colors";
 import { Goal } from "@/types";
@@ -22,36 +21,32 @@ export default function GoalTimeframeCard({ title, goals, onAddGoal }: GoalTimef
   const [smartGoalModalVisible, setSmartGoalModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
-  
+
   const handleEditGoal = (goal: Goal) => {
     setEditingGoal(goal);
     setEditModalVisible(true);
   };
-  
+
   const handleViewGoal = (goal: Goal) => {
     setViewingGoal(goal);
     setDetailModalVisible(true);
   };
-  
+
   const handleSaveGoal = (goalData: Omit<Goal, "id" | "progress" | "tasks">, tasks: any[]) => {
     if (editingGoal) {
-      // Update existing goal
       updateGoal({
         ...editingGoal,
         title: goalData.title,
         dueDate: goalData.dueDate,
         timeframe: goalData.timeframe
       });
-      
-      // We don't handle tasks here as they're managed separately in the store
     } else {
-      // Add new goal
       addGoal(goalData, tasks);
     }
     setSmartGoalModalVisible(false);
     setEditingGoal(undefined);
   };
-  
+
   const handleTogglePin = (goalId: string) => {
     togglePinGoal(goalId);
   };
@@ -67,15 +62,15 @@ export default function GoalTimeframeCard({ title, goals, onAddGoal }: GoalTimef
       default: return "1week";
     }
   };
-  
+
   return (
     <View style={styles.container} testID={`timeframe-${title}`}>
       <Text style={styles.title}>{title}</Text>
-      
+
       {goals.length > 0 ? (
         goals.map((goal) => (
-          <TouchableOpacity 
-            key={goal.id} 
+          <TouchableOpacity
+            key={goal.id}
             style={styles.goalItem}
             onPress={() => handleViewGoal(goal)}
             activeOpacity={0.7}
@@ -83,11 +78,8 @@ export default function GoalTimeframeCard({ title, goals, onAddGoal }: GoalTimef
             <View style={styles.goalHeader}>
               <Text style={styles.goalTitle}>{goal.title}</Text>
               <View style={styles.goalActions}>
-                <TouchableOpacity 
-                  onPress={(e: GestureResponderEvent) => {
-                    e.stopPropagation();
-                    handleTogglePin(goal.id);
-                  }}
+                <TouchableOpacity
+                  onPress={() => handleTogglePin(goal.id)}
                   style={styles.actionButton}
                 >
                   {pinnedGoalIds.includes(goal.id) ? (
@@ -96,20 +88,14 @@ export default function GoalTimeframeCard({ title, goals, onAddGoal }: GoalTimef
                     <PinOff size={16} color={colors.textSecondary} />
                   )}
                 </TouchableOpacity>
-                <TouchableOpacity 
-                  onPress={(e: GestureResponderEvent) => {
-                    e.stopPropagation();
-                    handleEditGoal(goal);
-                  }}
+                <TouchableOpacity
+                  onPress={() => handleEditGoal(goal)}
                   style={styles.actionButton}
                 >
                   <Edit size={16} color={colors.textSecondary} />
                 </TouchableOpacity>
-                <TouchableOpacity 
-                  onPress={(e: GestureResponderEvent) => {
-                    e.stopPropagation();
-                    handleViewGoal(goal);
-                  }}
+                <TouchableOpacity
+                  onPress={() => handleViewGoal(goal)}
                   style={styles.actionButton}
                 >
                   <Eye size={16} color={colors.textSecondary} />
@@ -119,11 +105,11 @@ export default function GoalTimeframeCard({ title, goals, onAddGoal }: GoalTimef
             </View>
             <View style={styles.progressContainer}>
               <View style={styles.progressBackground}>
-                <View 
+                <View
                   style={[
-                    styles.progressFill, 
+                    styles.progressFill,
                     { width: `${goal.progress}%` }
-                  ]} 
+                  ]}
                 />
               </View>
             </View>
@@ -132,9 +118,9 @@ export default function GoalTimeframeCard({ title, goals, onAddGoal }: GoalTimef
       ) : (
         <Text style={styles.emptyText}>No goals for this timeframe</Text>
       )}
-      
-      <TouchableOpacity 
-        style={styles.addButton} 
+
+      <TouchableOpacity
+        style={styles.addButton}
         onPress={() => {
           setEditingGoal(undefined);
           setSmartGoalModalVisible(true);
@@ -142,8 +128,7 @@ export default function GoalTimeframeCard({ title, goals, onAddGoal }: GoalTimef
       >
         <Text style={styles.addButtonText}>+ Add Goal</Text>
       </TouchableOpacity>
-      
-      {/* SMART Goal Template Modal for new goals */}
+
       <SmartGoalTemplate
         visible={smartGoalModalVisible}
         onClose={() => {
@@ -154,8 +139,7 @@ export default function GoalTimeframeCard({ title, goals, onAddGoal }: GoalTimef
         timeframe={getTimeframeFromTitle()}
         initialGoal={undefined}
       />
-      
-      {/* Edit Goal Modal for existing goals */}
+
       {editingGoal && (
         <EditGoalModal
           visible={editModalVisible}
@@ -165,22 +149,16 @@ export default function GoalTimeframeCard({ title, goals, onAddGoal }: GoalTimef
           }}
           goal={editingGoal}
           onSave={(updatedGoal, updatedTasks) => {
-            // Update the goal
             updateGoal(updatedGoal);
-            
-            // Update or add tasks
             updatedTasks.forEach(task => {
               updateTask(task);
             });
-            
-            // Close the edit modal
             setEditModalVisible(false);
             setEditingGoal(undefined);
           }}
           onDelete={(goalId) => {
             console.log('GoalTimeframeCard - Deleting goal with ID:', goalId);
             deleteGoal(goalId);
-            // Force save to AsyncStorage
             setTimeout(() => {
               console.log('GoalTimeframeCard - Forcing save after deletion');
             }, 100);
@@ -189,8 +167,7 @@ export default function GoalTimeframeCard({ title, goals, onAddGoal }: GoalTimef
           }}
         />
       )}
-      
-      {/* Goal Detail Modal */}
+
       <GoalDetailModal
         visible={detailModalVisible}
         onClose={() => {
@@ -277,62 +254,6 @@ const styles = StyleSheet.create({
   addButtonText: {
     color: colors.primary,
     fontSize: 14,
-    fontWeight: "600",
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  modalContent: {
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 20,
-    width: "85%",
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: colors.text,
-    marginBottom: 16,
-    textAlign: "center",
-  },
-  input: {
-    backgroundColor: colors.cardLight,
-    borderRadius: 8,
-    padding: 12,
-    color: colors.text,
-    fontSize: 16,
-    marginBottom: 16,
-  },
-  modalButtons: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  modalButton: {
-    flex: 1,
-    borderRadius: 8,
-    paddingVertical: 10,
-    alignItems: "center",
-    marginHorizontal: 5,
-  },
-  cancelButton: {
-    backgroundColor: colors.cardLight,
-  },
-  saveButton: {
-    backgroundColor: colors.primary,
-  },
-  cancelButtonText: {
-    color: colors.textSecondary,
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  saveButtonText: {
-    color: colors.text,
-    fontSize: 16,
     fontWeight: "600",
   },
 });

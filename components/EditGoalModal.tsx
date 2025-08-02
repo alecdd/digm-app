@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  StyleSheet, 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  Modal, 
+import {
+  StyleSheet,
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  Modal,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Alert
+  Alert,
 } from 'react-native';
 import { X, Plus, Trash2 } from 'lucide-react-native';
 import colors from '@/constants/colors';
@@ -25,75 +25,79 @@ interface EditGoalModalProps {
   onDelete?: (goalId: string) => void;
 }
 
-export default function EditGoalModal({ 
-  visible, 
-  onClose, 
+export default function EditGoalModal({
+  visible,
+  onClose,
   goal,
   onSave,
-  onDelete
+  onDelete,
 }: EditGoalModalProps) {
   const { tasks, deleteGoal } = useDigmStore();
+
   const [title, setTitle] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [smartGoalModalVisible, setSmartGoalModalVisible] = useState(false);
   const [smartGoalData, setSmartGoalData] = useState({
-    specific: goal?.specific || '',
-    measurable: goal?.measurable || '',
-    achievable: goal?.achievable || '',
-    relevant: goal?.relevant || '',
-    timeBound: goal?.timeBound || ''
+    specific: '',
+    measurable: '',
+    achievable: '',
+    relevant: '',
+    timeBound: '',
   });
-  const [goalTasks, setGoalTasks] = useState<{
-    id?: string;
-    title: string;
-    isHighImpact: boolean;
-    status: 'open' | 'inProgress' | 'done';
-    isCompleted: boolean;
-    xpReward: number;
-  }[]>([]);
+  const [goalTasks, setGoalTasks] = useState<Task[]>([]);
 
-  // Load goal data when modal opens
   useEffect(() => {
-    if (goal && visible) {
-      setTitle(goal.title);
-      
-      // Format date for display
-      try {
-        const date = new Date(goal.dueDate);
-        setDueDate(date.toLocaleDateString('en-US'));
-      } catch {
-        setDueDate(goal.dueDate);
-      }
-      
-      // Load SMART goal data if available
-      setSmartGoalData({
-        specific: goal.specific || '',
-        measurable: goal.measurable || '',
-        achievable: goal.achievable || '',
-        relevant: goal.relevant || '',
-        timeBound: goal.timeBound || ''
-      });
-      
-      // Load tasks associated with this goal
-      const associatedTasks = tasks.filter(task => task.goalId === goal.id);
-      
-      if (associatedTasks.length > 0) {
-        setGoalTasks(associatedTasks.map(task => ({
-          id: task.id,
-          title: task.title,
-          isHighImpact: task.isHighImpact,
-          status: task.status,
-          isCompleted: task.isCompleted,
-          xpReward: task.xpReward
-        })));
-      } else {
-        setGoalTasks([{ title: '', isHighImpact: false, status: 'open', isCompleted: false, xpReward: 5 }]);
-      }
+    if (!goal || !visible) return;
+
+    setTitle(goal.title);
+    try {
+      const date = new Date(goal.dueDate);
+      setDueDate(date.toLocaleDateString('en-US'));
+    } catch {
+      setDueDate(goal.dueDate);
+    }
+
+    setSmartGoalData({
+      specific: goal.specific || '',
+      measurable: goal.measurable || '',
+      achievable: goal.achievable || '',
+      relevant: goal.relevant || '',
+      timeBound: goal.timeBound || '',
+    });
+
+    const associatedTasks = tasks.filter(t => t.goalId === goal.id);
+    if (associatedTasks.length > 0) {
+      setGoalTasks(associatedTasks);
+    } else {
+      setGoalTasks([
+        {
+          id: '',
+          title: '',
+          goalId: goal.id,
+          status: 'open',
+          isHighImpact: false,
+          isCompleted: false,
+          xpReward: 5,
+          createdAt: new Date().toISOString(),
+        },
+      ]);
     }
   }, [goal, tasks, visible]);
 
   const handleAddTask = () => {
-    setGoalTasks([...goalTasks, { title: '', isHighImpact: false, status: 'open', isCompleted: false, xpReward: 5 }]);
+    setGoalTasks(prev => [
+      ...prev,
+      {
+        id: '',
+        title: '',
+        goalId: goal?.id || '',
+        status: 'open',
+        isHighImpact: false,
+        isCompleted: false,
+        xpReward: 5,
+        createdAt: new Date().toISOString(),
+      },
+    ]);
   };
 
   const handleRemoveTask = (index: number) => {
@@ -110,79 +114,73 @@ export default function EditGoalModal({
 
   const handleToggleHighImpact = (index: number) => {
     const newTasks = [...goalTasks];
-    newTasks[index].isHighImpact = !newTasks[index].isHighImpact;
-    newTasks[index].xpReward = newTasks[index].isHighImpact ? 15 : 5;
+    const task = newTasks[index];
+    task.isHighImpact = !task.isHighImpact;
+    task.xpReward = task.isHighImpact ? 15 : 5;
     setGoalTasks(newTasks);
   };
 
   const handleSubmit = () => {
-    if (!title.trim() || !goal) {
-      return;
-    }
+    if (!title.trim() || !goal) return;
 
-    // Format due date if needed
     let formattedDueDate = dueDate;
     if (dueDate.includes('/')) {
-      // Convert MM/DD/YYYY to ISO format
       try {
-        const parts = dueDate.split('/');
-        const month = parseInt(parts[0]) - 1;
-        const day = parseInt(parts[1]);
-        const year = parts[2].length === 2 ? 2000 + parseInt(parts[2]) : parseInt(parts[2]);
-        const date = new Date(year, month, day);
+        const [month, day, year] = dueDate.split('/');
+        const date = new Date(
+          parseInt(year.length === 2 ? `20${year}` : year),
+          parseInt(month) - 1,
+          parseInt(day)
+        );
         formattedDueDate = date.toISOString();
-      } catch (error) {
-        console.error('Error formatting date:', error);
+      } catch {
+        console.warn('Invalid date format');
       }
     }
 
-    // Filter out empty tasks
-    const validTasks = goalTasks
-      .filter(task => task.title.trim())
+    const validTasks: Task[] = goalTasks
+      .filter(t => t.title.trim())
       .map(task => ({
         ...task,
-        id: task.id || `task${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        id: task.id || `task${Date.now()}-${Math.random().toString(36).slice(2)}`,
         goalId: goal.id,
-        createdAt: new Date().toISOString(),
+        createdAt: task.createdAt || new Date().toISOString(),
+        completedAt: task.isCompleted ? task.completedAt || new Date().toISOString() : undefined,
       }));
 
-    // Create updated goal object with SMART data
     const updatedGoal: Goal = {
       ...goal,
       title,
       dueDate: formattedDueDate,
-      tasks: validTasks.map(task => task.id || ''),
-      // Update SMART goal data with current values
-      specific: smartGoalData.specific,
-      measurable: smartGoalData.measurable,
-      achievable: smartGoalData.achievable,
-      relevant: smartGoalData.relevant,
-      timeBound: smartGoalData.timeBound
+      tasks: validTasks.map(t => t.id),
+      ...smartGoalData,
     };
 
-    // Convert task objects to proper Task type
-    const updatedTasks = validTasks.map(task => ({
-      id: task.id || '',
-      title: task.title,
-      status: task.status,
-      isHighImpact: task.isHighImpact,
-      isCompleted: task.isCompleted,
-      goalId: goal.id,
-      xpReward: task.xpReward,
-      createdAt: task.id ? tasks.find(t => t.id === task.id)?.createdAt || new Date().toISOString() : new Date().toISOString(),
-      completedAt: task.isCompleted ? tasks.find(t => t.id === task.id)?.completedAt || new Date().toISOString() : undefined,
-    }));
-
-    console.log('Saving updated goal:', updatedGoal);
-    console.log('Saving updated tasks:', updatedTasks);
-    onSave(updatedGoal, updatedTasks);
+    onSave(updatedGoal, validTasks);
     onClose();
   };
 
+  const handleDeleteGoal = () => {
+    if (!goal) return;
+
+    Alert.alert('Delete Goal', 'Are you sure you want to delete this goal?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => {
+          const id = goal.id;
+          console.log('Deleting goal:', id);
+          onDelete?.(id); // optional callback
+          deleteGoal(id); // from Zustand store
+          onClose();
+        },
+      },
+    ]);
+  };
+
   const getTimeframeLabel = () => {
-    if (!goal) return '';
-    
-    switch (goal.timeframe) {
+    switch (goal?.timeframe) {
       case '10year': return '10-Year';
       case '5year': return '5-Year';
       case '1year': return '1-Year';
@@ -195,52 +193,8 @@ export default function EditGoalModal({
 
   if (!goal) return null;
 
-  const handleDeleteGoal = () => {
-    if (!goal) return;
-    
-    Alert.alert(
-      'Delete Goal',
-      'Are you sure you want to delete this goal? This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
-          style: 'destructive',
-          onPress: () => {
-            console.log('EditGoalModal - Deleting goal with ID:', goal.id);
-            if (onDelete) {
-              // Use the provided onDelete callback if available
-              console.log('Using provided onDelete callback');
-              onDelete(goal.id);
-            } else {
-              // Fallback to direct store deletion
-              console.log('Using direct store deletion');
-              deleteGoal(goal.id);
-              // Force save to AsyncStorage
-              setTimeout(() => {
-                console.log('EditGoalModal - Forcing save after deletion');
-              }, 100);
-            }
-            // Close the modal after deletion
-            onClose();
-          } 
-        },
-      ]
-    );
-  };
-
-  const handleOpenSmartGoalTemplate = () => {
-    // Always open the SMART goal template with current data
-    setSmartGoalModalVisible(true);
-  };
-
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.centeredView}
@@ -248,103 +202,80 @@ export default function EditGoalModal({
         <View style={styles.modalView}>
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Edit {getTimeframeLabel()} Goal</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <TouchableOpacity onPress={onClose}>
               <X color={colors.text} size={24} />
             </TouchableOpacity>
           </View>
 
           <ScrollView style={styles.scrollView}>
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Goal Title</Text>
-              <TextInput
-                style={styles.input}
-                value={title}
-                onChangeText={setTitle}
-                placeholder="Enter goal title"
-                placeholderTextColor={colors.textSecondary}
-              />
-            </View>
+            <Text style={styles.label}>Goal Title</Text>
+            <TextInput
+              style={styles.input}
+              value={title}
+              onChangeText={setTitle}
+              placeholder="Enter goal title"
+              placeholderTextColor={colors.textSecondary}
+            />
 
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Due Date</Text>
-              <TextInput
-                style={styles.input}
-                value={dueDate}
-                onChangeText={setDueDate}
-                placeholder="MM/DD/YYYY"
-                placeholderTextColor={colors.textSecondary}
-              />
-            </View>
+            <Text style={styles.label}>Due Date</Text>
+            <TextInput
+              style={styles.input}
+              value={dueDate}
+              onChangeText={setDueDate}
+              placeholder="MM/DD/YYYY"
+              placeholderTextColor={colors.textSecondary}
+            />
 
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Tasks</Text>
-              <Text style={styles.helperText}>
-                Edit existing tasks or add new ones to help achieve this goal.
-              </Text>
-
-              {goalTasks.map((task, index) => (
-                <View key={index} style={styles.taskItem}>
-                  <View style={styles.taskInputRow}>
-                    <TextInput
-                      style={styles.taskInput}
-                      value={task.title}
-                      onChangeText={(text) => handleTaskChange(text, index)}
-                      placeholder="Enter task"
-                      placeholderTextColor={colors.textSecondary}
-                    />
-                    <TouchableOpacity 
-                      onPress={() => handleRemoveTask(index)}
-                      style={styles.removeButton}
-                    >
-                      <Trash2 color={colors.error} size={20} />
-                    </TouchableOpacity>
-                  </View>
-                  
-                  <TouchableOpacity 
-                    style={[
-                      styles.highImpactButton, 
-                      task.isHighImpact && styles.highImpactButtonActive
-                    ]}
-                    onPress={() => handleToggleHighImpact(index)}
-                  >
-                    <Text style={[
-                      styles.highImpactText,
-                      task.isHighImpact && styles.highImpactTextActive
-                    ]}>
-                      {task.isHighImpact ? '🔥 High Impact' : 'Mark as High Impact'}
-                    </Text>
+            <Text style={styles.label}>Tasks</Text>
+            {goalTasks.map((task, index) => (
+              <View key={index} style={styles.taskItem}>
+                <View style={styles.taskInputRow}>
+                  <TextInput
+                    style={styles.taskInput}
+                    value={task.title}
+                    onChangeText={text => handleTaskChange(text, index)}
+                    placeholder="Enter task"
+                    placeholderTextColor={colors.textSecondary}
+                  />
+                  <TouchableOpacity onPress={() => handleRemoveTask(index)}>
+                    <Trash2 color={colors.error} size={20} />
                   </TouchableOpacity>
                 </View>
-              ))}
-
-              <TouchableOpacity style={styles.addTaskButton} onPress={handleAddTask}>
-                <Plus color={colors.primary} size={20} />
-                <Text style={styles.addTaskText}>Add Another Task</Text>
-              </TouchableOpacity>
-            </View>
+                <TouchableOpacity
+                  style={[
+                    styles.highImpactButton,
+                    task.isHighImpact && styles.highImpactButtonActive,
+                  ]}
+                  onPress={() => handleToggleHighImpact(index)}
+                >
+                  <Text
+                    style={[
+                      styles.highImpactText,
+                      task.isHighImpact && styles.highImpactTextActive,
+                    ]}
+                  >
+                    {task.isHighImpact ? '🔥 High Impact' : 'Mark as High Impact'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+            <TouchableOpacity onPress={handleAddTask} style={styles.addTaskButton}>
+              <Plus color={colors.primary} size={18} />
+              <Text style={styles.addTaskText}>Add Another Task</Text>
+            </TouchableOpacity>
           </ScrollView>
 
           <View style={styles.footer}>
-            <View style={styles.footerLeft}>
-              <TouchableOpacity 
-                style={styles.deleteButton} 
-                onPress={handleDeleteGoal}
-              >
-                <Trash2 color={colors.error} size={20} />
-                <Text style={styles.deleteButtonText}>Delete</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.footerRight}>
-              {(goal.specific || goal.measurable || goal.achievable || goal.relevant || goal.timeBound) && (
-                <TouchableOpacity style={styles.smartButton} onPress={handleOpenSmartGoalTemplate}>
-                  <Text style={styles.smartButtonText}>SMART Template</Text>
-                </TouchableOpacity>
-              )}
-              <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
+            <TouchableOpacity onPress={handleDeleteGoal} style={styles.deleteButton}>
+              <Trash2 color={colors.error} size={18} />
+              <Text style={styles.deleteButtonText}>Delete</Text>
+            </TouchableOpacity>
+            <View style={styles.actions}>
+              <TouchableOpacity onPress={onClose}>
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-                <Text style={styles.submitButtonText}>Save Changes</Text>
+              <TouchableOpacity onPress={handleSubmit} style={styles.saveButton}>
+                <Text style={styles.submitButtonText}>Save</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -358,39 +289,13 @@ export default function EditGoalModal({
           timeframe={goal.timeframe}
           initialGoal={goal}
           onSave={(updatedGoalData, updatedTasksData) => {
-            // Create updated goal object with existing ID and progress
-            const updatedGoal: Goal = {
-              ...goal,
-              ...updatedGoalData,
-            };
-            
-            // Get existing tasks for this goal
-            const existingTasks = tasks.filter(task => task.goalId === goal.id);
-            
-            // Create or update tasks
-            const updatedTasks = updatedTasksData.map(taskData => {
-              // Find if this task already exists (by title match)
-              const existingTask = existingTasks.find(t => t.title === taskData.title);
-              
-              if (existingTask) {
-                // Update existing task
-                return {
-                  ...existingTask,
-                  isHighImpact: taskData.isHighImpact,
-                  xpReward: taskData.xpReward
-                };
-              } else {
-                // Create new task
-                return {
-                  ...taskData,
-                  id: `task${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                  goalId: goal.id,
-                  createdAt: new Date().toISOString(),
-                };
-              }
-            });
-            
-            // Save changes
+            const updatedGoal: Goal = { ...goal, ...updatedGoalData };
+            const updatedTasks: Task[] = updatedTasksData.map(t => ({
+              ...t,
+              id: t.id || `task${Date.now()}-${Math.random().toString(36).slice(2)}`,
+              goalId: goal.id,
+              createdAt: t.createdAt || new Date().toISOString(),
+            }));
             onSave(updatedGoal, updatedTasks);
             setSmartGoalModalVisible(false);
           }}
@@ -403,62 +308,41 @@ export default function EditGoalModal({
 const styles = StyleSheet.create({
   centeredView: {
     flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
   },
   modalView: {
     width: '90%',
-    maxHeight: '80%',
+    maxHeight: '85%',
     backgroundColor: colors.card,
     borderRadius: 16,
-    overflow: 'hidden',
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 5,
+    paddingBottom: 10,
   },
   header: {
+    padding: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: 'bold' as const,
+    fontWeight: 'bold',
     color: colors.text,
-  },
-  closeButton: {
-    padding: 4,
   },
   scrollView: {
     padding: 16,
-    maxHeight: '70%',
-  },
-  formGroup: {
-    marginBottom: 20,
   },
   label: {
-    fontSize: 16,
-    fontWeight: '600' as const,
     color: colors.text,
-    marginBottom: 8,
-  },
-  helperText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 12,
+    fontWeight: '600',
+    marginTop: 12,
+    marginBottom: 6,
   },
   input: {
     backgroundColor: colors.cardLight,
     borderRadius: 8,
     padding: 12,
     color: colors.text,
-    fontSize: 16,
   },
   taskItem: {
     marginBottom: 12,
@@ -469,23 +353,18 @@ const styles = StyleSheet.create({
   },
   taskInput: {
     flex: 1,
+    marginRight: 8,
     backgroundColor: colors.cardLight,
     borderRadius: 8,
     padding: 12,
     color: colors.text,
-    fontSize: 16,
-    marginRight: 8,
-  },
-  removeButton: {
-    padding: 8,
   },
   highImpactButton: {
-    marginTop: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 4,
+    marginTop: 4,
     borderWidth: 1,
     borderColor: colors.flame,
+    padding: 6,
+    borderRadius: 4,
     alignSelf: 'flex-start',
   },
   highImpactButtonActive: {
@@ -493,84 +372,54 @@ const styles = StyleSheet.create({
   },
   highImpactText: {
     color: colors.flame,
-    fontSize: 12,
-    fontWeight: '500' as const,
+    fontWeight: '500',
   },
   highImpactTextActive: {
-    color: colors.text,
+    color: colors.white,
   },
   addTaskButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
-    padding: 8,
+    marginTop: 10,
   },
   addTaskText: {
-    color: colors.primary,
     marginLeft: 8,
-    fontSize: 14,
-    fontWeight: '500' as const,
+    color: colors.primary,
+    fontWeight: '500',
   },
   footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  footerLeft: {
+    borderColor: colors.border,
     flexDirection: 'row',
-    alignItems: 'center',
-  },
-  footerRight: {
-    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
   },
   deleteButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.error,
   },
   deleteButtonText: {
+    marginLeft: 6,
     color: colors.error,
-    fontSize: 14,
-    fontWeight: '600' as const,
-    marginLeft: 8,
+    fontWeight: '600',
   },
-  smartButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    marginRight: 12,
-    borderRadius: 8,
-    backgroundColor: colors.cardLight,
-  },
-  smartButtonText: {
-    color: colors.primary,
-    fontSize: 14,
-    fontWeight: '600' as const,
-  },
-  cancelButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    marginRight: 12,
+  actions: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   cancelButtonText: {
+    marginRight: 12,
     color: colors.textSecondary,
-    fontSize: 16,
   },
-  submitButton: {
+  saveButton: {
     backgroundColor: colors.primary,
-    paddingVertical: 10,
     paddingHorizontal: 16,
+    paddingVertical: 8,
     borderRadius: 8,
   },
   submitButtonText: {
     color: colors.text,
-    fontSize: 16,
-    fontWeight: '600' as const,
+    fontWeight: '600',
   },
 });

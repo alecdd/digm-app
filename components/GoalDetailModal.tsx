@@ -154,7 +154,7 @@ export default function GoalDetailModal({
                   {pendingTasks.map((task) => (
                     <View key={task.id} style={styles.taskItem}>
                       <View style={styles.taskStatus} />
-                      <Text style={styles.taskTitle}>{task.title}</Text>
+                      <Text style={styles.taskTitle}>{task.title || 'Untitled Task'}</Text>
                       {task.isHighImpact && (
                         <View style={styles.highImpactBadge}>
                           <Text style={styles.highImpactText}>🔥 High Impact</Text>
@@ -172,7 +172,7 @@ export default function GoalDetailModal({
                     <View key={task.id} style={styles.taskItem}>
                       <CheckCircle size={16} color={colors.success} />
                       <Text style={[styles.taskTitle, styles.completedTaskTitle]}>
-                        {task.title}
+                        {task.title || 'Untitled Task'}
                       </Text>
                       {task.isHighImpact && (
                         <View style={styles.highImpactBadge}>

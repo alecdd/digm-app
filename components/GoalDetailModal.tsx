@@ -3,9 +3,10 @@ import {
   StyleSheet,
   View,
   Text,
-  ScrollView
+  ScrollView,
+  TouchableOpacity,
+  Modal
 } from 'react-native';
-import { TouchableOpacity, Modal } from 'react-native';
 import { X, CheckCircle, Calendar, Target } from '@/lib/icons';
 import colors from '@/constants/colors';
 import { Goal } from '@/types';

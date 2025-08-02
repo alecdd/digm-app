@@ -8,7 +8,7 @@ import {
   Modal,
   Alert
 } from 'react-native';
-import { X, CheckCircle, Calendar, Target, Edit, Trash2 } from 'lucide-react-native';
+import { X, CheckCircle, Calendar, Target, Edit, Trash2 } from '@/lib/icons';
 import colors from '@/constants/colors';
 import { Goal } from '@/types';
 import { useDigmStore } from '@/hooks/useDigmStore';
@@ -171,6 +171,7 @@ export default function GoalDetailModal({
                           console.log('GoalDetailModal - Direct delete of goal with ID:', goal.id);
                           // Delete the goal from the store
                           deleteGoal(goal.id);
+                          // Close the modal after deletion
                           onClose();
                         }
                       } 

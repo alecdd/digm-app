@@ -11,7 +11,7 @@ import {
   Platform,
   Alert
 } from 'react-native';
-import { X, Plus, Trash2 } from 'lucide-react-native';
+import { X, Plus, Trash2 } from '@/lib/icons';
 import colors from '@/constants/colors';
 import { Goal, Task } from '@/types';
 import { useDigmStore } from '@/hooks/useDigmStore';
@@ -207,12 +207,15 @@ export default function EditGoalModal({
           text: 'Delete', 
           style: 'destructive',
           onPress: () => {
-            console.log('Deleting goal with ID:', goal.id);
+            console.log('EditGoalModal - Deleting goal with ID:', goal.id);
             if (onDelete) {
+              // Use the provided onDelete callback if available
               onDelete(goal.id);
             } else {
+              // Fallback to direct store deletion
               deleteGoal(goal.id);
             }
+            // Close the modal after deletion
             onClose();
           } 
         },

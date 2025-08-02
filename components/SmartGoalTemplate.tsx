@@ -39,11 +39,11 @@ export default function SmartGoalTemplate({
 }: SmartGoalTemplateProps) {
   const { tasks: allTasks } = useDigmStore();
   const [title, setTitle] = useState(initialGoal?.title || '');
-  const [specific, setSpecific] = useState('');
-  const [measurable, setMeasurable] = useState('');
-  const [achievable, setAchievable] = useState('');
-  const [relevant, setRelevant] = useState('');
-  const [timeBound, setTimeBound] = useState('');
+  const [specific, setSpecific] = useState(initialGoal?.specific || '');
+  const [measurable, setMeasurable] = useState(initialGoal?.measurable || '');
+  const [achievable, setAchievable] = useState(initialGoal?.achievable || '');
+  const [relevant, setRelevant] = useState(initialGoal?.relevant || '');
+  const [timeBound, setTimeBound] = useState(initialGoal?.timeBound || '');
   const [dueDate, setDueDate] = useState(initialGoal?.dueDate || '');
   const [tasks, setTasks] = useState<{
     title: string;
@@ -133,6 +133,11 @@ export default function SmartGoalTemplate({
         title,
         dueDate: formattedDueDate,
         timeframe,
+        specific,
+        measurable,
+        achievable,
+        relevant,
+        timeBound
       },
       validTasks
     );

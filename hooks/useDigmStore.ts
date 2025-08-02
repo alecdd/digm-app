@@ -217,6 +217,25 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
     done: tasks.filter(t => t.status === "done"),
   }), [tasks]);
 
+  const focusGoals = useMemo(() => {
+    return goals.filter(goal => {
+      // Include pinned goals and goals with high progress but not completed
+      return pinnedGoalIds.includes(goal.id) || (goal.progress > 0 && goal.progress < 100);
+    }).map(goal => {
+      const goalTasks = tasks.filter(t => t.goalId === goal.id);
+      const completedTasks = goalTasks.filter(t => t.status === "done").length;
+      const totalTasks = goalTasks.length || 1;
+      const earnedXP = goalTasks.reduce((sum, t) => t.status === "done" ? sum + (t.xpReward || 0) : sum, 0);
+      
+      return {
+        ...goal,
+        completedTasks,
+        totalTasks,
+        earnedXP
+      };
+    });
+  }, [goals, pinnedGoalIds, tasks]);
+
   const nextLevelXp = useMemo(() => (userProfile.level + 1) * 100, [userProfile.level]);
   const xpProgress = useMemo(() => (userProfile.xp / nextLevelXp) * 100, [userProfile.xp, nextLevelXp]);
 
@@ -230,6 +249,7 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
     pinnedGoalIds,
     highImpactTasks,
     tasksByStatus,
+    focusGoals,
     nextLevelXp,
     xpProgress,
     updateTask,

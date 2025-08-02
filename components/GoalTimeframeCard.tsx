@@ -149,7 +149,7 @@ export default function GoalTimeframeCard({ title, goals, onAddGoal }: GoalTimef
         }}
         onSave={handleSaveGoal}
         timeframe={editingGoal?.timeframe || getTimeframeFromTitle()}
-        initialGoal={editingGoal || undefined}
+        initialGoal={editingGoal ?? undefined}
       />
       
       {/* Goal Detail Modal */}

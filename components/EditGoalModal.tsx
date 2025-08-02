@@ -236,7 +236,7 @@ export default function EditGoalModal({
                   <TextInput
                     style={styles.taskInput}
                     value={task.title}
-                    onChangeText={text => handleTaskChange(text, index)}
+                    onChangeText={(text: string) => handleTaskChange(text, index)}
                     placeholder="Enter task"
                     placeholderTextColor={colors.textSecondary}
                   />
@@ -318,7 +318,7 @@ const styles = StyleSheet.create({
   modalView: {
     width: '90%',
     maxHeight: '85%',
-    backgroundColor: colors.card,
+    backgroundColor: colors.cardLight,
     borderRadius: 16,
     paddingBottom: 10,
   },
@@ -378,7 +378,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   highImpactTextActive: {
-    color: colors.white,
+    color: '#ffffff',
   },
   addTaskButton: {
     flexDirection: 'row',

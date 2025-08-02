@@ -7,7 +7,7 @@ import {
   Modal,
   ScrollView
 } from 'react-native';
-import { X, CheckCircle, Calendar, Target } from 'lucide-react-native';
+import { X, CheckCircle, Calendar, Target } from '@/lib/icons';
 import colors from '@/constants/colors';
 import { Goal } from '@/types';
 import { useDigmStore } from '@/hooks/useDigmStore';

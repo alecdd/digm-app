@@ -11,7 +11,7 @@ import {
   Modal,
   Platform
 } from 'react-native';
-import { X, Check, HelpCircle } from '@/lib/icons';
+import { X, Check, HelpCircle } from 'lucide-react-native';
 import colors from '@/constants/colors';
 import { Goal } from '@/types';
 import { useDigmStore } from '@/hooks/useDigmStore';
@@ -52,7 +52,23 @@ export default function SmartGoalTemplate({
   
   // Load existing tasks when editing a goal
   useEffect(() => {
-    if (initialGoal) {
+    if (initialGoal && visible) {
+      // Reset form with initial goal data when modal becomes visible
+      setTitle(initialGoal.title || '');
+      setSpecific(initialGoal.specific || '');
+      setMeasurable(initialGoal.measurable || '');
+      setAchievable(initialGoal.achievable || '');
+      setRelevant(initialGoal.relevant || '');
+      setTimeBound(initialGoal.timeBound || '');
+      
+      // Format date for display
+      try {
+        const date = new Date(initialGoal.dueDate);
+        setDueDate(date.toLocaleDateString('en-US'));
+      } catch {
+        setDueDate(initialGoal.dueDate);
+      }
+      
       // If we're editing an existing goal, load its tasks
       const existingTasks = allTasks
         .filter(task => task.goalId === initialGoal.id)
@@ -63,9 +79,11 @@ export default function SmartGoalTemplate({
       
       if (existingTasks.length > 0) {
         setTasks(existingTasks);
+      } else {
+        setTasks([{ title: '', isHighImpact: false }]);
       }
     }
-  }, [initialGoal, allTasks]);
+  }, [initialGoal, allTasks, visible]);
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
 
   const handleAddTask = () => {
@@ -114,8 +132,21 @@ export default function SmartGoalTemplate({
       return;
     }
 
-    // Format due date if not provided
-    const formattedDueDate = dueDate.trim() || new Date().toISOString();
+    // Format due date if needed
+    let formattedDueDate = dueDate.trim() || new Date().toISOString();
+    if (dueDate.includes('/')) {
+      // Convert MM/DD/YYYY to ISO format
+      try {
+        const parts = dueDate.split('/');
+        const month = parseInt(parts[0]) - 1;
+        const day = parseInt(parts[1]);
+        const year = parts[2].length === 2 ? 2000 + parseInt(parts[2]) : parseInt(parts[2]);
+        const date = new Date(year, month, day);
+        formattedDueDate = date.toISOString();
+      } catch (error) {
+        console.error('Error formatting date:', error);
+      }
+    }
 
     // Filter out empty tasks
     const validTasks = tasks

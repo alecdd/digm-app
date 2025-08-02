@@ -3,7 +3,7 @@ import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { ChevronRight, Pin, PinOff, Edit } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import colors from '@/constants/colors';
-import { useDigmStore, useFocusGoals } from '@/hooks/useDigmStore';
+import { useDigmStore } from '@/hooks/useDigmStore';
 import GoalDetailModal from './GoalDetailModal';
 import EditGoalModal from './EditGoalModal';
 
@@ -16,11 +16,15 @@ export default function FocusGoals({ onSeeAllPress }: FocusGoalsProps) {
   const [editingGoal, setEditingGoal] = useState<string | null>(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const router = useRouter();
-  const focusGoals = useFocusGoals();
+  const { focusGoals } = useDigmStore();
   const { pinnedGoalIds, togglePinGoal, updateGoal, updateTask, deleteGoal /*, saveData */ } = useDigmStore();
 
   const handleSeeAll = () => {
-    onSeeAllPress ? onSeeAllPress() : router.push('/(tabs)/profile');
+    if (onSeeAllPress) {
+      onSeeAllPress();
+    } else {
+      router.push('/(tabs)/profile');
+    }
   };
 
   const handleTogglePin = (goalId: string) => {

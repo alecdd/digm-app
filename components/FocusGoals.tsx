@@ -30,6 +30,13 @@ export default function FocusGoals({ onSeeAllPress }: FocusGoalsProps) {
     togglePinGoal(goalId);
   };
 
+  const handleDeleteGoal = (goalId: string) => {
+    console.log('FocusGoals - Deleting goal with ID:', goalId);
+    deleteGoal(goalId);
+    setEditModalVisible(false);
+    setEditingGoal(null);
+  };
+
   return (
     <View style={styles.container} testID="focus-goals">
       <View style={styles.header}>
@@ -108,7 +115,7 @@ export default function FocusGoals({ onSeeAllPress }: FocusGoalsProps) {
         <GoalDetailModal
           visible={!!selectedGoal}
           onClose={() => setSelectedGoal(null)}
-          goal={focusGoals.find(g => g.id === selectedGoal) || undefined}
+          goal={focusGoals.find(g => g.id === selectedGoal) || null}
         />
       )}
 
@@ -126,16 +133,7 @@ export default function FocusGoals({ onSeeAllPress }: FocusGoalsProps) {
             setEditModalVisible(false);
             setEditingGoal(null);
           }}
-          onDelete={(goalId) => {
-            console.log('Deleting goal with ID:', goalId);
-            deleteGoal(goalId);
-            setTimeout(() => {
-              console.log('Force-save after deletion');
-              // Optionally: saveData(); if you've exposed it from the store
-            }, 100);
-            setEditModalVisible(false);
-            setEditingGoal(null);
-          }}
+          onDelete={handleDeleteGoal}
         />
       )}
     </View>

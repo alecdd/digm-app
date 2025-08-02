@@ -282,7 +282,7 @@ export default function EditGoalModal({
                     <TextInput
                       style={styles.taskInput}
                       value={task.title}
-                      onChangeText={(text) => handleTaskChange(text, index)}
+                      onChangeText={(text: string) => handleTaskChange(text, index)}
                       placeholder="Enter task"
                       placeholderTextColor={colors.textSecondary}
                     />

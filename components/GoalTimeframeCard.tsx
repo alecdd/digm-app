@@ -39,6 +39,8 @@ export default function GoalTimeframeCard({ title, goals, onAddGoal }: GoalTimef
         dueDate: goalData.dueDate,
         timeframe: goalData.timeframe
       });
+      
+      // We don't handle tasks here as they're managed separately in the store
     } else {
       // Add new goal
       addGoal(goalData, tasks);
@@ -157,7 +159,7 @@ export default function GoalTimeframeCard({ title, goals, onAddGoal }: GoalTimef
           setDetailModalVisible(false);
           setViewingGoal(null);
         }}
-        goal={viewingGoal || undefined}
+        goal={viewingGoal}
         onEdit={() => {
           setDetailModalVisible(false);
           if (viewingGoal) {

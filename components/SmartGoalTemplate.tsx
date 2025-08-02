@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -14,6 +14,7 @@ import {
 import { X, Check, HelpCircle } from 'lucide-react-native';
 import colors from '@/constants/colors';
 import { Goal } from '@/types';
+import { useDigmStore } from '@/hooks/useDigmStore';
 
 interface SmartGoalTemplateProps {
   visible: boolean;
@@ -36,6 +37,7 @@ export default function SmartGoalTemplate({
   timeframe,
   initialGoal
 }: SmartGoalTemplateProps) {
+  const { tasks: allTasks } = useDigmStore();
   const [title, setTitle] = useState(initialGoal?.title || '');
   const [specific, setSpecific] = useState('');
   const [measurable, setMeasurable] = useState('');
@@ -47,6 +49,23 @@ export default function SmartGoalTemplate({
     title: string;
     isHighImpact: boolean;
   }[]>([{ title: '', isHighImpact: false }]);
+  
+  // Load existing tasks when editing a goal
+  useEffect(() => {
+    if (initialGoal) {
+      // If we're editing an existing goal, load its tasks
+      const existingTasks = allTasks
+        .filter(task => task.goalId === initialGoal.id)
+        .map(task => ({
+          title: task.title,
+          isHighImpact: task.isHighImpact
+        }));
+      
+      if (existingTasks.length > 0) {
+        setTasks(existingTasks);
+      }
+    }
+  }, [initialGoal, allTasks]);
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
 
   const handleAddTask = () => {

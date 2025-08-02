@@ -15,7 +15,7 @@ import { useDigmStore } from '@/hooks/useDigmStore';
 interface GoalDetailModalProps {
   visible: boolean;
   onClose: () => void;
-  goal: Goal | null;
+  goal?: Goal | null;
   onEdit: () => void;
 }
 

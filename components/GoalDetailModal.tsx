@@ -6,9 +6,16 @@ import {
   ScrollView,
   TouchableOpacity,
   Modal,
-  Alert
+  Alert,
 } from 'react-native';
-import { X, CheckCircle, Calendar, Target, Edit, Trash2 } from '@/lib/icons';
+import {
+  X,
+  CheckCircle,
+  Calendar,
+  Target,
+  Edit,
+  Trash2,
+} from '@/lib/icons';
 import colors from '@/constants/colors';
 import { Goal } from '@/types';
 import { useDigmStore } from '@/hooks/useDigmStore';
@@ -24,59 +31,86 @@ interface GoalDetailModalProps {
 export default function GoalDetailModal({
   visible,
   onClose,
-  goal
+  goal,
 }: GoalDetailModalProps) {
-  const { tasks, updateGoal, updateTask, addTask, deleteGoal } = useDigmStore();
+  const {
+    tasks,
+    updateGoal,
+    updateTask,
+    addTask,
+    deleteGoal,
+  } = useDigmStore();
+
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [smartGoalModalVisible, setSmartGoalModalVisible] = useState(false);
 
   if (!goal) return null;
 
-  const goalTasks = tasks.filter(task => task.goalId === goal.id);
-  const completedTasks = goalTasks.filter(task => task.status === 'done');
-  const pendingTasks = goalTasks.filter(task => task.status !== 'done');
-  
-  const formatDate = (dateString: string) => {
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString(undefined, { 
-        year: 'numeric', 
-        month: 'short', 
-        day: 'numeric' 
-      });
-    } catch {
-      return dateString;
-    }
+  const goalTasks = tasks.filter((task) => task.goalId === goal.id);
+  const completedTasks = goalTasks.filter((task) => task.status === 'done');
+  const pendingTasks = goalTasks.filter((task) => task.status !== 'done');
+
+  const handleDelete = () => {
+    Alert.alert(
+      'Delete Goal',
+      'Are you sure you want to delete this goal? This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            console.log('GoalDetailModal - Deleting goal:', goal.id);
+            deleteGoal(goal.id);
+            setTimeout(() => {
+              console.log('Deletion complete, closing modal...');
+              onClose();
+            }, 50);
+          },
+        },
+      ]
+    );
+  };
+
+  const formatDate = (date: string) => {
+    const d = new Date(date);
+    return d.toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
   };
 
   const getTimeframeLabel = () => {
-    switch (goal.timeframe) {
-      case '10year': return '10-Year Vision';
-      case '5year': return '5-Year Goal';
-      case '1year': return '1-Year Goal';
-      case '3month': return '3-Month Goal';
-      case '1month': return '1-Month Goal';
-      case '1week': return '1-Week Goal';
-      default: return 'Goal';
-    }
+    const map: { [key: string]: string } = {
+      '10year': '10-Year Vision',
+      '5year': '5-Year Goal',
+      '1year': '1-Year Goal',
+      '3month': '3-Month Goal',
+      '1month': '1-Month Goal',
+      '1week': '1-Week Goal',
+    };
+    return map[goal.timeframe] || 'Goal';
   };
 
   return (
     <Modal
       visible={visible}
       animationType="slide"
-      transparent={true}
+      transparent
       onRequestClose={onClose}
     >
       <View style={styles.centeredView}>
         <View style={styles.modalView}>
+          {/* Header */}
           <View style={styles.header}>
             <Text style={styles.headerTitle}>{goal.title}</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <X color={colors.text} size={24} />
+              <X size={24} color={colors.text} />
             </TouchableOpacity>
           </View>
 
+          {/* Content */}
           <ScrollView style={styles.scrollView}>
             <View style={styles.infoSection}>
               <View style={styles.infoRow}>
@@ -86,21 +120,22 @@ export default function GoalDetailModal({
                 </View>
                 <View style={styles.infoItem}>
                   <Calendar size={18} color={colors.primary} />
-                  <Text style={styles.infoLabel}>Due: {formatDate(goal.dueDate)}</Text>
+                  <Text style={styles.infoLabel}>
+                    Due: {formatDate(goal.dueDate)}
+                  </Text>
                 </View>
               </View>
-              
+
               <View style={styles.progressContainer}>
                 <View style={styles.progressHeader}>
                   <Text style={styles.progressTitle}>Progress</Text>
-                  <Text style={styles.progressPercentage}>{goal.progress}%</Text>
+                  <Text style={styles.progressPercentage}>
+                    {goal.progress}%
+                  </Text>
                 </View>
                 <View style={styles.progressBarContainer}>
-                  <View 
-                    style={[
-                      styles.progressBar, 
-                      { width: `${goal.progress}%` }
-                    ]} 
+                  <View
+                    style={[styles.progressBar, { width: `${goal.progress}%` }]}
                   />
                 </View>
                 <Text style={styles.progressStats}>
@@ -109,13 +144,14 @@ export default function GoalDetailModal({
               </View>
             </View>
 
+            {/* Tasks */}
             <View style={styles.tasksSection}>
               <Text style={styles.sectionTitle}>Tasks</Text>
-              
+
               {pendingTasks.length > 0 && (
                 <View style={styles.taskGroup}>
                   <Text style={styles.taskGroupTitle}>Pending</Text>
-                  {pendingTasks.map(task => (
+                  {pendingTasks.map((task) => (
                     <View key={task.id} style={styles.taskItem}>
                       <View style={styles.taskStatus} />
                       <Text style={styles.taskTitle}>{task.title}</Text>
@@ -128,11 +164,11 @@ export default function GoalDetailModal({
                   ))}
                 </View>
               )}
-              
+
               {completedTasks.length > 0 && (
                 <View style={styles.taskGroup}>
                   <Text style={styles.taskGroupTitle}>Completed</Text>
-                  {completedTasks.map(task => (
+                  {completedTasks.map((task) => (
                     <View key={task.id} style={styles.taskItem}>
                       <CheckCircle size={16} color={colors.success} />
                       <Text style={[styles.taskTitle, styles.completedTaskTitle]}>
@@ -147,130 +183,58 @@ export default function GoalDetailModal({
                   ))}
                 </View>
               )}
-              
+
               {goalTasks.length === 0 && (
                 <Text style={styles.emptyText}>No tasks associated with this goal</Text>
               )}
             </View>
           </ScrollView>
 
+          {/* Footer */}
           <View style={styles.footer}>
-            <TouchableOpacity 
-              style={styles.deleteButton} 
-              onPress={() => {
-                Alert.alert(
-                  'Delete Goal',
-                  'Are you sure you want to delete this goal? This action cannot be undone.',
-                  [
-                    { text: 'Cancel', style: 'cancel' },
-                    { 
-                      text: 'Delete', 
-                      style: 'destructive',
-                      onPress: () => {
-                        if (goal) {
-                          console.log('GoalDetailModal - Direct delete of goal with ID:', goal.id);
-                          // Delete the goal from the store
-                          console.log('Calling deleteGoal with ID:', goal.id);
-                          deleteGoal(goal.id);
-                          // Force save to AsyncStorage
-                          setTimeout(() => {
-                            console.log('GoalDetailModal - Forcing save after deletion');
-                          }, 100);
-                          // Close the modal after deletion
-                          onClose();
-                        }
-                      } 
-                    },
-                  ]
-                );
-              }}
-            >
-              <Trash2 color={colors.error} size={20} />
+            <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
+              <Trash2 size={20} color={colors.error} />
               <Text style={styles.deleteButtonText}>Delete Goal</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.editButton} 
+            <TouchableOpacity
+              style={styles.editButton}
               onPress={() => setEditModalVisible(true)}
             >
-              <Edit color={colors.text} size={20} />
+              <Edit size={20} color={colors.text} />
               <Text style={styles.editButtonText}>Edit Goal</Text>
             </TouchableOpacity>
           </View>
-          
+
+          {/* Modals */}
           <EditGoalModal
             visible={editModalVisible}
             onClose={() => setEditModalVisible(false)}
             goal={goal}
             onSave={(updatedGoal, updatedTasks) => {
-              console.log('GoalDetailModal - Saving updated goal:', updatedGoal);
-              // Update the goal
               updateGoal(updatedGoal);
-              
-              // Update or add tasks
-              updatedTasks.forEach(task => {
-                console.log('GoalDetailModal - Updating task:', task);
-                updateTask(task);
-              });
-              
-              // Close the edit modal
+              updatedTasks.forEach(updateTask);
               setEditModalVisible(false);
             }}
             onDelete={(goalId) => {
-              console.log('GoalDetailModal - Deleting goal with ID:', goalId);
               deleteGoal(goalId);
               onClose();
             }}
           />
-          
+
           {goal && (
             <SmartGoalTemplate
               visible={smartGoalModalVisible}
               onClose={() => setSmartGoalModalVisible(false)}
               timeframe={goal.timeframe}
               initialGoal={goal}
-              onSave={(updatedGoalData, updatedTasksData) => {
-                // Create updated goal object with existing ID and progress
-                const updatedGoal: Goal = {
-                  ...goal,
-                  ...updatedGoalData,
-                };
-                
-                // Update the goal
-                updateGoal(updatedGoal);
-                
-                // Get existing tasks for this goal
-                const existingTasks = tasks.filter(task => task.goalId === goal.id);
-                // Get existing tasks for reference
-                
-                // Create or update tasks
-                updatedTasksData.forEach(taskData => {
-                  // Find if this task already exists (by title match)
-                  const existingTask = existingTasks.find(t => t.title === taskData.title);
-                  
-                  if (existingTask) {
-                    // Update existing task
-                    updateTask({
-                      ...existingTask,
-                      isHighImpact: taskData.isHighImpact,
-                      xpReward: taskData.xpReward
-                    });
-                  } else {
-                    // Add new task
-                    const newTask = {
-                      ...taskData,
-                      goalId: goal.id,
-                    };
-                    const addedTask = addTask(newTask);
-                    
-                    // Update goal's tasks array
-                    updateGoal({
-                      ...updatedGoal,
-                      tasks: [...updatedGoal.tasks, addedTask.id]
-                    });
-                  }
+              onSave={(goalData, tasksData) => {
+                updateGoal({ ...goal, ...goalData });
+                tasksData.forEach(task => {
+                  const existing = tasks.find(t => t.title === task.title);
+                  existing
+                    ? updateTask({ ...existing, ...task })
+                    : addTask({ ...task, goalId: goal.id });
                 });
-                
-                // Close the modal
                 setSmartGoalModalVisible(false);
               }}
             />

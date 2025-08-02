@@ -173,15 +173,18 @@ export default function SmartGoalTemplate({
       validTasks
     );
 
-    // Reset form
-    setTitle('');
-    setSpecific('');
-    setMeasurable('');
-    setAchievable('');
-    setRelevant('');
-    setTimeBound('');
-    setDueDate('');
-    setTasks([{ title: '', isHighImpact: false }]);
+    // Don't reset form when editing an existing goal
+    if (!initialGoal) {
+      // Reset form only for new goals
+      setTitle('');
+      setSpecific('');
+      setMeasurable('');
+      setAchievable('');
+      setRelevant('');
+      setTimeBound('');
+      setDueDate('');
+      setTasks([{ title: '', isHighImpact: false }]);
+    }
     onClose();
   };
 
@@ -414,7 +417,7 @@ export default function SmartGoalTemplate({
             </TouchableOpacity>
             <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
               <Text style={styles.submitButtonText}>
-                <Check size={16} color={colors.text} /> {initialGoal ? 'Save Changes' : 'Create Goal'}
+                <Check size={16} color={colors.text} /> Save Changes
               </Text>
             </TouchableOpacity>
           </View>

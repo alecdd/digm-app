@@ -8,8 +8,7 @@ import {
   Modal,
   Alert
 } from 'react-native';
-import { X, CheckCircle, Calendar, Target, Edit } from '@/lib/icons';
-import { Trash2 } from 'lucide-react-native';
+import { X, CheckCircle, Calendar, Target, Edit, Trash2 } from '@/lib/icons';
 import colors from '@/constants/colors';
 import { Goal } from '@/types';
 import { useDigmStore } from '@/hooks/useDigmStore';
@@ -184,14 +183,7 @@ export default function GoalDetailModal({
             </TouchableOpacity>
             <TouchableOpacity 
               style={styles.editButton} 
-              onPress={() => {
-                // If the goal has SMART fields, use the SmartGoalTemplate
-                if (goal?.specific || goal?.measurable || goal?.achievable || goal?.relevant || goal?.timeBound) {
-                  setSmartGoalModalVisible(true);
-                } else {
-                  setEditModalVisible(true);
-                }
-              }}
+              onPress={() => setEditModalVisible(true)}
             >
               <Edit color={colors.text} size={20} />
               <Text style={styles.editButtonText}>Edit Goal</Text>

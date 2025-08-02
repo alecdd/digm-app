@@ -36,6 +36,13 @@ export default function EditGoalModal({
   const [title, setTitle] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [smartGoalModalVisible, setSmartGoalModalVisible] = useState(false);
+  const [smartGoalData, setSmartGoalData] = useState({
+    specific: goal?.specific || '',
+    measurable: goal?.measurable || '',
+    achievable: goal?.achievable || '',
+    relevant: goal?.relevant || '',
+    timeBound: goal?.timeBound || ''
+  });
   const [goalTasks, setGoalTasks] = useState<{
     id?: string;
     title: string;
@@ -47,7 +54,7 @@ export default function EditGoalModal({
 
   // Load goal data when modal opens
   useEffect(() => {
-    if (goal) {
+    if (goal && visible) {
       setTitle(goal.title);
       
       // Format date for display
@@ -57,6 +64,15 @@ export default function EditGoalModal({
       } catch {
         setDueDate(goal.dueDate);
       }
+      
+      // Load SMART goal data if available
+      setSmartGoalData({
+        specific: goal.specific || '',
+        measurable: goal.measurable || '',
+        achievable: goal.achievable || '',
+        relevant: goal.relevant || '',
+        timeBound: goal.timeBound || ''
+      });
       
       // Load tasks associated with this goal
       const associatedTasks = tasks.filter(task => task.goalId === goal.id);
@@ -130,12 +146,18 @@ export default function EditGoalModal({
         createdAt: new Date().toISOString(),
       }));
 
-    // Create updated goal object
+    // Create updated goal object with SMART data if it exists
     const updatedGoal: Goal = {
       ...goal,
       title,
       dueDate: formattedDueDate,
       tasks: validTasks.map(task => task.id || ''),
+      // Preserve SMART goal data
+      specific: goal.specific || smartGoalData.specific,
+      measurable: goal.measurable || smartGoalData.measurable,
+      achievable: goal.achievable || smartGoalData.achievable,
+      relevant: goal.relevant || smartGoalData.relevant,
+      timeBound: goal.timeBound || smartGoalData.timeBound
     };
 
     // Convert task objects to proper Task type
@@ -196,7 +218,7 @@ export default function EditGoalModal({
   };
 
   const handleOpenSmartGoalTemplate = () => {
-    // Always open the SMART goal template, regardless of whether the goal was created with it
+    // Always open the SMART goal template with current data
     setSmartGoalModalVisible(true);
   };
 
@@ -301,9 +323,11 @@ export default function EditGoalModal({
               </TouchableOpacity>
             </View>
             <View style={styles.footerRight}>
-              <TouchableOpacity style={styles.smartButton} onPress={handleOpenSmartGoalTemplate}>
-                <Text style={styles.smartButtonText}>SMART Template</Text>
-              </TouchableOpacity>
+              {(goal.specific || goal.measurable || goal.achievable || goal.relevant || goal.timeBound) && (
+                <TouchableOpacity style={styles.smartButton} onPress={handleOpenSmartGoalTemplate}>
+                  <Text style={styles.smartButtonText}>SMART Template</Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>

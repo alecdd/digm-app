@@ -36,11 +36,19 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
           AsyncStorage.getItem(STORAGE_KEYS.PINNED_GOALS),
         ]);
 
+      console.log('Loading data from AsyncStorage:');
+      console.log('- Pinned goals:', storedPinned);
+      
       if (storedUserProfile) setUserProfile(JSON.parse(storedUserProfile));
       if (storedGoals) setGoals(JSON.parse(storedGoals));
       if (storedTasks) setTasks(JSON.parse(storedTasks));
       if (storedJournalEntries) setJournalEntries(JSON.parse(storedJournalEntries));
-      if (storedPinned) setPinnedGoalIds(JSON.parse(storedPinned));
+      
+      if (storedPinned) {
+        const parsedPinned = JSON.parse(storedPinned);
+        console.log('- Parsed pinned goals:', parsedPinned);
+        setPinnedGoalIds(parsedPinned);
+      }
     } catch (err) {
       console.error("Error loading data:", err);
     }
@@ -178,12 +186,29 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
     setUserProfile(up => ({ ...up, vision }));
   }, []);
 
-  const togglePinGoal = useCallback((id: string) => {
-    setPinnedGoalIds(pinned => {
-      const updated = pinned.includes(id)
-        ? pinned.filter(gid => gid !== id)
-        : [...pinned, id].slice(-3);
-      AsyncStorage.setItem(STORAGE_KEYS.PINNED_GOALS, JSON.stringify(updated));
+  const togglePinGoal = useCallback(async (id: string) => {
+    console.log('togglePinGoal called with ID:', id);
+    
+    // Get the current state first
+    setPinnedGoalIds(currentPinned => {
+      console.log('Current pinned goals:', currentPinned);
+      
+      // Check if the goal is already pinned
+      const isPinned = currentPinned.includes(id);
+      console.log('Is goal already pinned?', isPinned);
+      
+      // Create the updated array - either remove the goal or add it (limiting to 3 pinned goals)
+      const updated = isPinned
+        ? currentPinned.filter(gid => gid !== id)
+        : [...currentPinned, id].slice(-3);
+      
+      console.log('Updated pinned goals:', updated);
+      
+      // Persist the change to AsyncStorage
+      AsyncStorage.setItem(STORAGE_KEYS.PINNED_GOALS, JSON.stringify(updated))
+        .then(() => console.log('Pinned goals saved to AsyncStorage'))
+        .catch(err => console.error('Error saving pinned goals:', err));
+      
       return updated;
     });
   }, []);

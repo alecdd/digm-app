@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
-import { Pin, PinOff, Edit, ChevronRight } from 'lucide-react-native';
+import { Pin, PinOff, Edit } from 'lucide-react-native';
+import { ChevronRight } from '@/lib/icons';
 import { useRouter } from 'expo-router';
 import colors from '@/constants/colors';
 import { useDigmStore } from '@/hooks/useDigmStore';
@@ -18,6 +19,10 @@ export default function FocusGoals({ onSeeAllPress }: FocusGoalsProps) {
   const router = useRouter();
   const { focusGoals, pinnedGoalIds, togglePinGoal, updateGoal, updateTask, deleteGoal } = useDigmStore();
 
+  useEffect(() => {
+    console.log('FocusGoals - pinnedGoalIds changed:', pinnedGoalIds);
+  }, [pinnedGoalIds]);
+
   const handleSeeAll = () => {
     if (onSeeAllPress) {
       onSeeAllPress();
@@ -27,7 +32,11 @@ export default function FocusGoals({ onSeeAllPress }: FocusGoalsProps) {
   };
 
   const handleTogglePin = (goalId: string) => {
+    console.log('FocusGoals - Toggling pin for goal ID:', goalId);
+    console.log('Current pinnedGoalIds before toggle:', pinnedGoalIds);
     togglePinGoal(goalId);
+    // Note: pinnedGoalIds won't be updated immediately due to React's asynchronous state updates
+    // The useEffect hook will log the updated pinnedGoalIds when they change
   };
 
   const handleDeleteGoal = (goalId: string) => {
@@ -35,6 +44,7 @@ export default function FocusGoals({ onSeeAllPress }: FocusGoalsProps) {
     deleteGoal(goalId);
     setEditModalVisible(false);
     setEditingGoal(null);
+    console.log('Goal deleted, pinnedGoalIds:', pinnedGoalIds);
   };
 
   return (

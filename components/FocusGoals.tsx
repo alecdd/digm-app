@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
-import { ChevronRight, Pin, PinOff, Edit } from 'lucide-react-native';
+import { Pin, PinOff, Edit } from 'lucide-react-native';
+import { ChevronRight } from '@/lib/icons';
 import { useRouter } from 'expo-router';
 import colors from '@/constants/colors';
 import { useDigmStore } from '@/hooks/useDigmStore';
@@ -108,7 +109,7 @@ export default function FocusGoals({ onSeeAllPress }: FocusGoalsProps) {
         <GoalDetailModal
           visible={!!selectedGoal}
           onClose={() => setSelectedGoal(null)}
-          goal={focusGoals.find(g => g.id === selectedGoal) || null}
+          goal={focusGoals.find(g => g.id === selectedGoal)}
         />
       )}
 
@@ -148,15 +149,15 @@ const styles = StyleSheet.create({
   title: { fontSize: 24, fontWeight: 'bold', color: colors.text },
   seeAllButton: { flexDirection: 'row', alignItems: 'center' },
   seeAllText: { color: colors.primary, fontWeight: '600', marginRight: 4 },
-  emptyContainer: { backgroundColor: colors.card, borderRadius: 12, padding: 24, alignItems: 'center', justifyContent: 'center' },
+  emptyContainer: { backgroundColor: colors.cardLight, borderRadius: 12, padding: 24, alignItems: 'center', justifyContent: 'center' },
   emptyText: { color: colors.textSecondary, fontSize: 16, textAlign: 'center' },
-  goalCard: { backgroundColor: colors.card, borderRadius: 12, padding: 16, marginBottom: 12, borderLeftWidth: 4, borderLeftColor: colors.primary },
+  goalCard: { backgroundColor: colors.cardLight, borderRadius: 12, padding: 16, marginBottom: 12, borderLeftWidth: 4, borderLeftColor: colors.primary },
   goalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   goalTitle: { fontSize: 18, fontWeight: 'bold', color: colors.text, flex: 1 },
   goalActions: { flexDirection: 'row' },
   actionButton: { paddingHorizontal: 6 },
   progressContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  progressBarContainer: { flex: 1, height: 8, backgroundColor: colors.progressBackground, borderRadius: 4, marginRight: 8, overflow: 'hidden' },
+  progressBarContainer: { flex: 1, height: 8, backgroundColor: colors.border, borderRadius: 4, marginRight: 8, overflow: 'hidden' },
   progressBar: { height: '100%', backgroundColor: colors.primary, borderRadius: 4 },
   progressText: { fontSize: 14, fontWeight: 'bold', color: colors.primary, width: 40, textAlign: 'right' },
   goalStats: { flexDirection: 'row', justifyContent: 'space-between' },

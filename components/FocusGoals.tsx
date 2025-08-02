@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
-import { Pin, PinOff, Edit } from 'lucide-react-native';
-import { ChevronRight } from '@/lib/icons';
+import { Pin, PinOff, Edit, ChevronRight } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import colors from '@/constants/colors';
 import { useDigmStore } from '@/hooks/useDigmStore';
@@ -109,7 +108,7 @@ export default function FocusGoals({ onSeeAllPress }: FocusGoalsProps) {
         <GoalDetailModal
           visible={!!selectedGoal}
           onClose={() => setSelectedGoal(null)}
-          goal={focusGoals.find(g => g.id === selectedGoal)}
+          goal={focusGoals.find(g => g.id === selectedGoal) || undefined}
         />
       )}
 

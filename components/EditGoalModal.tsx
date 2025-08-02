@@ -11,7 +11,8 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import { X, Plus, Trash2 } from '@/lib/icons';
+import { X, Trash2 } from 'lucide-react-native';
+import { Plus } from '@/lib/icons';
 import colors from '@/constants/colors';
 import { Goal, Task } from '@/types';
 import { useDigmStore } from '@/hooks/useDigmStore';
@@ -318,7 +319,7 @@ const styles = StyleSheet.create({
   modalView: {
     width: '90%',
     maxHeight: '85%',
-    backgroundColor: colors.cardLight,
+    backgroundColor: colors.card,
     borderRadius: 16,
     paddingBottom: 10,
   },
@@ -365,16 +366,16 @@ const styles = StyleSheet.create({
   highImpactButton: {
     marginTop: 4,
     borderWidth: 1,
-    borderColor: colors.flame,
+    borderColor: colors.accent,
     padding: 6,
     borderRadius: 4,
     alignSelf: 'flex-start',
   },
   highImpactButtonActive: {
-    backgroundColor: colors.flame,
+    backgroundColor: colors.accent,
   },
   highImpactText: {
-    color: colors.flame,
+    color: colors.accent,
     fontWeight: '500',
   },
   highImpactTextActive: {

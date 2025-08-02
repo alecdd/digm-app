@@ -41,7 +41,7 @@ function sanitizeTask(t: Partial<Task>, goalId: string): Task {
 interface EditGoalModalProps {
   visible: boolean;
   onClose: () => void;
-  goal: Goal | null;
+  goal: Goal | undefined;
   onSave: (updatedGoal: Goal, updatedTasks: Task[]) => void;
   onDelete?: (goalId: string) => void;
 }

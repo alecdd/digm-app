@@ -14,7 +14,7 @@ import {
   Calendar,
   Target,
   Edit,
-  Trash2,
+  Trash,
 } from '@/lib/icons';
 import colors from '@/constants/colors';
 import { Goal } from '@/types';
@@ -25,7 +25,7 @@ import SmartGoalTemplate from './SmartGoalTemplate';
 interface GoalDetailModalProps {
   visible: boolean;
   onClose: () => void;
-  goal?: Goal;
+  goal: Goal | null;
 }
 
 export default function GoalDetailModal({
@@ -198,7 +198,7 @@ export default function GoalDetailModal({
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               accessibilityLabel="Delete Goal"
             >
-              <Trash2 size={20} color={colors.error} />
+              <Trash size={20} color={colors.error} />
               <Text style={styles.deleteButtonText}>Delete Goal</Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -237,9 +237,11 @@ export default function GoalDetailModal({
                 updateGoal({ ...goal, ...goalData });
                 tasksData.forEach(task => {
                   const existing = tasks.find(t => t.title === task.title);
-                  existing
-                    ? updateTask({ ...existing, ...task })
-                    : addTask({ ...task, goalId: goal.id });
+                  if (existing) {
+                    updateTask({ ...existing, ...task });
+                  } else {
+                    addTask({ ...task, goalId: goal.id });
+                  }
                 });
                 setSmartGoalModalVisible(false);
               }}

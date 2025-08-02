@@ -297,11 +297,21 @@ export default function EditGoalModal({
           initialGoal={goal}
           onSave={(updatedGoalData, updatedTasksData) => {
             const updatedGoal: Goal = { ...goal, ...updatedGoalData };
-            const updatedTasks: Task[] = updatedTasksData.map(t => ({
-              ...t,
-              id: 'id' in t ? t.id : `task${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            const updatedTasks: Task[] = updatedTasksData.map((t) => ({
+              id: typeof t.id === 'string' ? t.id : `task${Date.now()}-${Math.random().toString(36).slice(2)}`,
+              title: t.title || '',
               goalId: goal.id,
-              createdAt: 'createdAt' in t ? t.createdAt : new Date().toISOString(),
+              status: 'open',
+              isHighImpact: !!t.isHighImpact,
+              isCompleted: !!t.isCompleted,
+              xpReward: t.xpReward ?? 5,
+              createdAt: typeof t.createdAt === 'string' ? t.createdAt : new Date().toISOString(),
+              completedAt:
+                t.isCompleted && typeof t.completedAt === 'string'
+                  ? t.completedAt
+                  : t.isCompleted
+                  ? new Date().toISOString()
+                  : undefined,
             }));
             onSave(updatedGoal, updatedTasks);
             setSmartGoalModalVisible(false);

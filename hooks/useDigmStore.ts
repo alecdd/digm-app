@@ -137,6 +137,24 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
     return task;
   }, []);
 
+  const deleteTask = useCallback((taskId: string) => {
+    setTasks(ts => ts.filter(t => t.id !== taskId));
+    
+    // Update goal progress if the task was tied to a goal
+    const taskToDelete = tasks.find(t => t.id === taskId);
+    if (taskToDelete?.goalId) {
+      setGoals(gs => gs.map(goal => {
+        if (goal.id === taskToDelete.goalId) {
+          const remainingGoalTasks = tasks.filter(t => t.goalId === goal.id && t.id !== taskId);
+          const completedTasks = remainingGoalTasks.filter(t => t.status === "done");
+          const progress = remainingGoalTasks.length > 0 ? Math.round((completedTasks.length / remainingGoalTasks.length) * 100) : 0;
+          return { ...goal, progress, tasks: goal.tasks.filter(tId => tId !== taskId) };
+        }
+        return goal;
+      }));
+    }
+  }, [tasks]);
+
   const updateGoal = useCallback((updated: Goal) => {
     const existing = goals.find(g => g.id === updated.id);
     const isCompleted = existing && existing.progress < 100 && updated.progress === 100;
@@ -283,6 +301,7 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
     updateTask,
     moveTask,
     addTask,
+    deleteTask,
     updateGoal,
     addGoal,
     deleteGoal,

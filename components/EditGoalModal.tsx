@@ -53,7 +53,7 @@ export default function EditGoalModal({
   onSave,
   onDelete,
 }: EditGoalModalProps) {
-  const { tasks, deleteGoal } = useDigmStore();
+  const { tasks, deleteGoal, deleteTask } = useDigmStore();
 
   const [title, setTitle] = useState('');
   const [dueDate, setDueDate] = useState('');
@@ -103,6 +103,22 @@ export default function EditGoalModal({
 
   const handleRemoveTask = (index: number) => {
     const newTasks = [...goalTasks];
+    const taskToRemove = newTasks[index];
+    
+    // Check if this is an existing task that was loaded from the store
+    // Existing tasks will have IDs that don't start with the current timestamp pattern
+    const isExistingTask = taskToRemove && 
+      taskToRemove.id && 
+      !taskToRemove.id.includes(Date.now().toString()) && 
+      tasks.some(t => t.id === taskToRemove.id);
+    
+    if (isExistingTask) {
+      // This is an existing task, delete it from the store immediately
+      console.log('Deleting existing task:', taskToRemove.id);
+      deleteTask(taskToRemove.id);
+    }
+    
+    // Remove from local state
     newTasks.splice(index, 1);
     setGoalTasks(newTasks);
   };

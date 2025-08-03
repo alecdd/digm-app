@@ -33,18 +33,23 @@ export default function FocusGoals({ onSeeAllPress }: FocusGoalsProps) {
 
   const handleTogglePin = (goalId: string) => {
     console.log('FocusGoals - Toggling pin for goal ID:', goalId);
-    console.log('Current pinnedGoalIds before toggle:', pinnedGoalIds);
     togglePinGoal(goalId);
-    // Note: pinnedGoalIds won't be updated immediately due to React's asynchronous state updates
-    // The useEffect hook will log the updated pinnedGoalIds when they change
   };
 
   const handleDeleteGoal = (goalId: string) => {
     console.log('FocusGoals - Deleting goal with ID:', goalId);
     deleteGoal(goalId);
+    handleEditModalClose();
+    handleModalClose();
+  };
+
+  const handleModalClose = () => {
+    setSelectedGoal(null);
+  };
+
+  const handleEditModalClose = () => {
     setEditModalVisible(false);
     setEditingGoal(null);
-    console.log('Goal deleted, pinnedGoalIds:', pinnedGoalIds);
   };
 
   return (
@@ -124,7 +129,7 @@ export default function FocusGoals({ onSeeAllPress }: FocusGoalsProps) {
       {selectedGoal && (
         <GoalDetailModal
           visible={!!selectedGoal}
-          onClose={() => setSelectedGoal(null)}
+          onClose={handleModalClose}
           goal={focusGoals.find(g => g.id === selectedGoal) || null}
         />
       )}
@@ -132,16 +137,12 @@ export default function FocusGoals({ onSeeAllPress }: FocusGoalsProps) {
       {editingGoal && (
         <EditGoalModal
           visible={editModalVisible}
-          onClose={() => {
-            setEditModalVisible(false);
-            setEditingGoal(null);
-          }}
+          onClose={handleEditModalClose}
           goal={focusGoals.find(g => g.id === editingGoal) || undefined}
           onSave={(updatedGoal, updatedTasks) => {
             updateGoal(updatedGoal);
             updatedTasks.forEach(updateTask);
-            setEditModalVisible(false);
-            setEditingGoal(null);
+            handleEditModalClose();
           }}
           onDelete={handleDeleteGoal}
         />

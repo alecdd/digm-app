@@ -60,12 +60,9 @@ export default function GoalDetailModal({
           text: 'Delete',
           style: 'destructive',
           onPress: () => {
-            console.log('GoalDetailModal - Deleting goal:', goal.id);
+            console.log('🚨 Confirmed delete button pressed'); // ← Add this log
             deleteGoal(goal.id);
-            setTimeout(() => {
-              console.log('Deletion complete, closing modal...');
-              onClose();
-            }, 50);
+            onClose();
           },
         },
       ]

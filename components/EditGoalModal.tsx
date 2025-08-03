@@ -157,6 +157,7 @@ export default function EditGoalModal({
 
   const handleDeleteGoal = () => {
     if (!goal) return;
+    console.log("🧨 Delete clicked - goal ID:", goal.id);
 
     Alert.alert('Delete Goal', 'Are you sure you want to delete this goal?', [
       { text: 'Cancel', style: 'cancel' },
@@ -165,8 +166,11 @@ export default function EditGoalModal({
         style: 'destructive',
         onPress: () => {
           const id = goal.id;
-          if (onDelete) onDelete(id);
-          else deleteGoal(id);
+          console.log("🔥 Confirmed delete, deleting goal:", goal.id);
+          if (onDelete) {
+            console.log("Calling onDelete from EditGoalModal");
+            onDelete(id);
+          } else deleteGoal(id);
           onClose();
         },
       },
@@ -260,7 +264,7 @@ export default function EditGoalModal({
           </ScrollView>
 
           <View style={styles.footer}>
-            <TouchableOpacity onPress={handleDeleteGoal} style={styles.deleteButton}>
+            <TouchableOpacity onPress={() => handleDeleteGoal()} style={styles.deleteButton}>
               <Trash color={colors.error} size={18} />
               <Text style={styles.deleteButtonText}>Delete</Text>
             </TouchableOpacity>

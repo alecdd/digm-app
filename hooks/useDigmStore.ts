@@ -214,26 +214,29 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
   }, []);
 
   const deleteGoal = useCallback((id: string) => {
-    setGoals(current => {
-      const updated = current.filter(g => g.id !== id);
-      AsyncStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(updated));
-      return updated;
-    });
+    // Compute updated values
+    const updatedGoals = goals.filter(g => g.id !== id);
+    const updatedTasks = tasks.filter(t => t.goalId !== id);
+    const updatedPinned = pinnedGoalIds.filter(gid => gid !== id);
 
-    setTasks(current => {
-      const updated = current.filter(t => t.goalId !== id);
-      AsyncStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(updated));
-      return updated;
-    });
+    // Update state to trigger re-render
+    setGoals(updatedGoals);
+    setTasks(updatedTasks);
+    setPinnedGoalIds(updatedPinned);
 
-    setPinnedGoalIds(current => {
-      const updated = current.filter(gid => gid !== id);
-      AsyncStorage.setItem(STORAGE_KEYS.PINNED_GOALS, JSON.stringify(updated));
-      return updated;
-    });
-
-    setTimeout(() => saveData(), 250); // backup write
-  }, [saveData]);
+    // Persist changes to AsyncStorage
+    AsyncStorage.multiSet([
+      [STORAGE_KEYS.GOALS, JSON.stringify(updatedGoals)],
+      [STORAGE_KEYS.TASKS, JSON.stringify(updatedTasks)],
+      [STORAGE_KEYS.PINNED_GOALS, JSON.stringify(updatedPinned)],
+    ])
+      .then(() => {
+        console.log("✅ Goal deleted and changes saved:", id);
+      })
+      .catch((err) => {
+        console.error("❌ Error saving after deleting goal:", err);
+      });
+  }, [goals, tasks, pinnedGoalIds]);
 
   const highImpactTasks = useMemo(() => tasks.filter(t => t.isHighImpact && !t.isCompleted), [tasks]);
   const tasksByStatus = useMemo(() => ({

@@ -174,7 +174,7 @@ export default function GoalTimeframeCard({ title, goals, onAddGoal }: GoalTimef
           setDetailModalVisible(false);
           setViewingGoal(undefined);
         }}
-        goal={viewingGoal}
+        goal={viewingGoal ?? null}
       />
     </View>
   );

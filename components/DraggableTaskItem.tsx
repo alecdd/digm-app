@@ -228,6 +228,10 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 2,
   },
+  taskTitleDone: {
+  textDecorationLine: 'line-through',
+  color: colors.textSecondary,
+  },
   goalLink: {
     fontSize: 12,
     color: colors.primary,

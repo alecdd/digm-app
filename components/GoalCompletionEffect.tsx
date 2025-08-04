@@ -1,7 +1,16 @@
 import React, { useRef, useEffect } from 'react';
 import { StyleSheet, View, Text, Animated, Platform } from 'react-native';
-import ConfettiCannon from 'react-native-confetti-cannon';
 import colors from '@/constants/colors';
+
+// Conditionally import ConfettiCannon only for native platforms
+let ConfettiCannon: any = null;
+if (Platform.OS !== 'web') {
+  try {
+    ConfettiCannon = require('react-native-confetti-cannon').default;
+  } catch (e) {
+    console.warn('ConfettiCannon not available:', e);
+  }
+}
 
 interface GoalCompletionEffectProps {
   visible: boolean;
@@ -20,6 +29,8 @@ export default function GoalCompletionEffect({
 
   useEffect(() => {
     if (visible) {
+      console.log('🎊 GoalCompletionEffect: Starting animation for goal:', goalTitle);
+      
       // Reset animation values
       opacity.setValue(0);
       scale.setValue(0.8);
@@ -40,12 +51,16 @@ export default function GoalCompletionEffect({
       ]).start();
       
       // Trigger confetti
-      if (confettiRef.current && Platform.OS !== 'web') {
+      if (confettiRef.current && Platform.OS !== 'web' && ConfettiCannon) {
+        console.log('🎆 Triggering confetti cannon!');
         confettiRef.current.start();
+      } else {
+        console.log('🎆 Confetti not available - Platform:', Platform.OS, 'ConfettiCannon:', !!ConfettiCannon);
       }
       
       // Auto hide after 5 seconds
       const timer = setTimeout(() => {
+        console.log('🎊 GoalCompletionEffect: Hiding animation');
         Animated.parallel([
           Animated.timing(opacity, {
             toValue: 0,
@@ -64,7 +79,7 @@ export default function GoalCompletionEffect({
       
       return () => clearTimeout(timer);
     }
-  }, [visible, opacity, scale, onAnimationEnd]);
+  }, [visible, opacity, scale, onAnimationEnd, goalTitle]);
 
   if (!visible) return null;
 
@@ -89,7 +104,7 @@ export default function GoalCompletionEffect({
         </Text>
       </Animated.View>
       
-      {Platform.OS !== 'web' && (
+      {Platform.OS !== 'web' && ConfettiCannon && (
         <ConfettiCannon
           ref={confettiRef}
           count={300}

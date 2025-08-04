@@ -130,72 +130,80 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
       completedAt: updated.status === "done" ? (updated.completedAt || new Date().toISOString()) : undefined
     };
 
-    setTasks(ts => ts.map(t => (t.id === updated.id ? taskToUpdate : t)));
+    console.log('Updating task:', taskToUpdate.title, 'Status:', taskToUpdate.status, 'IsCompleted:', taskToUpdate.isCompleted);
 
+    // Award XP for task completion
     if (updated.status === "done" && prev?.status !== "done") {
-      console.log('Task completed:', updated.title);
-      // Award XP based on task type
+      console.log('✅ Task completed:', updated.title);
       const xpReward = updated.isHighImpact ? 15 : 5;
       
       setUserProfile(up => {
         const xp = up.xp + xpReward;
         const level = getLevelInfo(xp).level;
+        console.log(`Awarded ${xpReward} XP for task completion. Total XP: ${xp}`);
         return { ...up, xp, level };
       });
     }
     
-    // Check for goal completion after task update
-    setTimeout(() => {
+    // Update tasks and check for goal completion
+    setTasks(currentTasks => {
+      const updatedTasks = currentTasks.map(t => t.id === taskToUpdate.id ? taskToUpdate : t);
+      
+      // Check goal completion immediately with the updated tasks
       const goalId = taskToUpdate.goalId;
-      if (!goalId) return;
-      
-      // Get current tasks for this goal (including the updated task)
-      const currentTasks = tasks.map(t => t.id === taskToUpdate.id ? taskToUpdate : t);
-      const goalTasks = currentTasks.filter(t => t.goalId === goalId);
-      const completedTasks = goalTasks.filter(t => t.status === "done");
-      const progress = goalTasks.length > 0 ? Math.round((completedTasks.length / goalTasks.length) * 100) : 0;
-      
-      console.log(`Goal ${goalId} progress: ${completedTasks.length}/${goalTasks.length} = ${progress}%`);
-      
-      setGoals(gs => {
-        return gs.map(goal => {
-          if (goal.id === goalId) {
-            const updatedGoal = { ...goal, progress };
-            
-            // Check if goal is newly completed
-            if (progress === 100 && goal.progress < 100) {
-              console.log('🎉 Goal completed:', goal.title);
+      if (goalId) {
+        const goalTasks = updatedTasks.filter(t => t.goalId === goalId);
+        const completedTasks = goalTasks.filter(t => t.status === "done");
+        const progress = goalTasks.length > 0 ? Math.round((completedTasks.length / goalTasks.length) * 100) : 0;
+        
+        console.log(`🎯 Goal ${goalId} progress: ${completedTasks.length}/${goalTasks.length} = ${progress}%`);
+        
+        // Update goal progress and check for completion
+        setGoals(currentGoals => {
+          return currentGoals.map(goal => {
+            if (goal.id === goalId) {
+              const updatedGoal = { ...goal, progress };
               
-              // Award XP for goal completion
-              setUserProfile(up => {
-                const xp = up.xp + 50; // 50 XP for goal completion
-                const level = getLevelInfo(xp).level;
-                return { ...up, xp, level };
-              });
-              
-              // Unpin the goal if it's pinned
-              if (pinnedGoalIds.includes(goal.id)) {
-                console.log('Unpinning completed goal:', goal.id);
-                setPinnedGoalIds(current => current.filter(id => id !== goal.id));
+              // Check if goal is newly completed
+              if (progress === 100 && goal.progress < 100) {
+                console.log('🎉🎉🎉 GOAL COMPLETED:', goal.title);
+                
+                // Award XP for goal completion
+                setUserProfile(up => {
+                  const xp = up.xp + 50; // 50 XP for goal completion
+                  const level = getLevelInfo(xp).level;
+                  console.log(`🏆 Awarded 50 XP for goal completion! Total XP: ${xp}`);
+                  return { ...up, xp, level };
+                });
+                
+                // Unpin the goal if it's pinned
+                if (pinnedGoalIds.includes(goal.id)) {
+                  console.log('📌 Unpinning completed goal:', goal.id);
+                  setPinnedGoalIds(current => current.filter(id => id !== goal.id));
+                }
+                
+                // Set completed goal to trigger animation
+                console.log('🎊 Setting completed goal for animation:', updatedGoal.title);
+                setCompletedGoal(updatedGoal);
+                
+                // Remove completed goal from the list after animation
+                setTimeout(() => {
+                  console.log('🗑️ Removing completed goal from list:', goal.title);
+                  setGoals(gs => gs.filter(g => g.id !== goal.id));
+                  setCompletedGoal(null);
+                }, 5500);
               }
               
-              // Set completed goal to trigger animation
-              setCompletedGoal(updatedGoal);
-              
-              // Remove completed goal from the list after animation
-              setTimeout(() => {
-                setGoals(gs => gs.filter(g => g.id !== goal.id));
-                setCompletedGoal(null);
-              }, 5500);
+              return updatedGoal;
             }
-            
-            return updatedGoal;
-          }
-          return goal;
+            return goal;
+          });
         });
-      });
-    }, 100);
-  }, [tasks]);
+      }
+      
+      return updatedTasks;
+    });
+  }, [tasks, pinnedGoalIds]);
 
   const moveTask = useCallback((id: string, status: TaskStatus) => {
     const t = tasks.find(t => t.id === id);

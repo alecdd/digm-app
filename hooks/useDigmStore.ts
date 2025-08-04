@@ -25,6 +25,23 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
   const [completedGoal, setCompletedGoal] = useState<Goal | null>(null);
   const [pinnedGoalIds, setPinnedGoalIds] = useState<string[]>([]);
 
+  const calculateGoalProgress = useCallback((goalId: string) => {
+    const goalTasks = tasks.filter(t => t.goalId === goalId);
+    const completedTasks = goalTasks.filter(t => t.status === "done").length;
+    const totalTasks = goalTasks.length || 1; // Ensure at least 1 to avoid division by zero
+    return totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+  }, [tasks]);
+
+  // Recalculate progress for all goals whenever tasks change
+  useEffect(() => {
+    setGoals(currentGoals => {
+      return currentGoals.map(goal => {
+        const calculatedProgress = calculateGoalProgress(goal.id);
+        return { ...goal, progress: calculatedProgress };
+      });
+    });
+  }, [tasks, calculateGoalProgress]);
+
   const loadData = useCallback(async () => {
     try {
       const [storedUserProfile, storedGoals, storedTasks, storedJournalEntries, storedPinned] =
@@ -384,6 +401,7 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
     focusGoals,
     nextLevelXp,
     xpProgress,
+    calculateGoalProgress,
     updateTask,
     moveTask,
     addTask,

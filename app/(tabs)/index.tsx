@@ -14,12 +14,20 @@ export default function HomeScreen() {
   const { userProfile, quote, tasksByStatus, updateTask, highImpactTasks, completedGoal, clearCompletedGoal } = useDigmStore();
 
   const handleToggleTask = useCallback((task: Task) => {
+    // Don't allow toggling if task is already completed
+    if (task.isCompleted || task.status === "done") {
+      console.log('Task is already completed, cannot toggle');
+      return;
+    }
+
     const updatedTask = {
       ...task,
-      isCompleted: !task.isCompleted,
-      status: task.isCompleted ? task.status : "done",
-      completedAt: task.isCompleted ? undefined : new Date().toISOString(),
+      isCompleted: true,
+      status: "done" as const,
+      completedAt: new Date().toISOString(),
     };
+    
+    console.log('Toggling task to completed:', updatedTask.title);
     updateTask(updatedTask);
   }, [updateTask]);
 

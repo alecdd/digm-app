@@ -39,7 +39,7 @@ export const mockGoals: Goal[] = [
     dueDate: "2025-04-15",
     progress: 5,
     timeframe: "1year",
-    tasks: [],
+    tasks: ["task11"],
   },
 ];
 
@@ -82,6 +82,16 @@ export const mockTasks: Task[] = [
     isCompleted: false,
     goalId: "goal3",
     xpReward: 10,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "task11",
+    title: "Complete Run a marathon",
+    status: "open",
+    isHighImpact: true,
+    isCompleted: false,
+    goalId: "goal4",
+    xpReward: 15,
     createdAt: new Date().toISOString(),
   },
   {

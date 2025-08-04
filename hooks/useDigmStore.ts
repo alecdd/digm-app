@@ -122,6 +122,21 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
           })
         );
       }
+    } else if (updated.goalId) {
+      // Update goal progress whenever a task is updated
+      setGoals(gs =>
+        gs.map(goal => {
+          if (goal.id === updated.goalId) {
+            const goalTasks = tasks.filter(t => t.goalId === goal.id);
+            const doneTasks = goalTasks.filter(t => 
+              (t.id === updated.id ? updated.status === "done" : t.status === "done")
+            );
+            const progress = Math.round((doneTasks.length / goalTasks.length) * 100);
+            return { ...goal, progress };
+          }
+          return goal;
+        })
+      );
     }
   }, [tasks]);
 
@@ -157,9 +172,24 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
 
   const updateGoal = useCallback((updated: Goal) => {
     const existing = goals.find(g => g.id === updated.id);
-    const isCompleted = existing && existing.progress < 100 && updated.progress === 100;
+    
+    // Calculate progress based on task completion ratio
+    const goalTasks = tasks.filter(t => t.goalId === updated.id);
+    const completedTasks = goalTasks.filter(t => t.status === "done");
+    const calculatedProgress = goalTasks.length > 0 
+      ? Math.round((completedTasks.length / goalTasks.length) * 100) 
+      : 0;
+    
+    // Update the goal with calculated progress
+    const updatedWithProgress = {
+      ...updated,
+      progress: calculatedProgress
+    };
+    
+    // Check if goal is newly completed
+    const isCompleted = existing && existing.progress < 100 && calculatedProgress === 100;
 
-    setGoals(gs => gs.map(g => g.id === updated.id ? updated : g));
+    setGoals(gs => gs.map(g => g.id === updated.id ? updatedWithProgress : g));
 
     if (isCompleted) {
       setUserProfile(up => {
@@ -168,27 +198,38 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
         return { ...up, xp, level };
       });
 
-      setCompletedGoal(updated);
+      setCompletedGoal(updatedWithProgress);
       setTimeout(() => setCompletedGoal(null), 5000);
     }
-  }, [goals]);
+    
+    return updatedWithProgress;
+  }, [goals, tasks]);
 
   const addGoal = useCallback((g: Omit<Goal, "id" | "progress" | "tasks">, initialTasks: Omit<Task, "id" | "createdAt" | "goalId">[] = []) => {
     const id = `goal${Date.now()}`;
     const goal: Goal = { ...g, id, progress: 0, tasks: [] };
     setGoals(gs => [...gs, goal]);
 
-    if (initialTasks.length) {
-      const newTasks = initialTasks.map(t => ({
-        ...t,
-        id: `task${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        createdAt: new Date().toISOString(),
-        goalId: id,
-      }));
-
-      setTasks(ts => [...ts, ...newTasks]);
-      setGoals(gs => gs.map(g => g.id === id ? { ...g, tasks: newTasks.map(t => t.id) } : g));
+    // If no tasks provided, create a default task with the goal name
+    if (initialTasks.length === 0) {
+      initialTasks = [{
+        title: `Complete ${g.title}`,
+        status: 'open',
+        isHighImpact: true,
+        isCompleted: false,
+        xpReward: 15
+      }];
     }
+
+    const newTasks = initialTasks.map(t => ({
+      ...t,
+      id: `task${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      createdAt: new Date().toISOString(),
+      goalId: id,
+    }));
+
+    setTasks(ts => [...ts, ...newTasks]);
+    setGoals(gs => gs.map(g => g.id === id ? { ...g, tasks: newTasks.map(t => t.id) } : g));
 
     return goal;
   }, []);

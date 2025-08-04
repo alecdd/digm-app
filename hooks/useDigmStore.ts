@@ -108,36 +108,40 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
         const level = getLevelInfo(xp).level;
         return { ...up, xp, level };
       });
-
-      if (updated.goalId) {
-        setGoals(gs =>
-          gs.map(goal => {
-            if (goal.id === updated.goalId) {
-              const goalTasks = tasks.filter(t => t.goalId === goal.id);
-              const doneTasks = goalTasks.filter(t => t.id === updated.id || t.status === "done");
-              const progress = Math.round((doneTasks.length / goalTasks.length) * 100);
-              return { ...goal, progress };
-            }
-            return goal;
-          })
-        );
-      }
-    } else if (updated.goalId) {
-      // Update goal progress whenever a task is updated
-      setGoals(gs =>
-        gs.map(goal => {
-          if (goal.id === updated.goalId) {
+    }
+    
+    // Always recalculate progress for all goals to ensure consistency
+    setTimeout(() => {
+      setGoals(gs => {
+        return gs.map(goal => {
+          // Only recalculate for the goal this task belongs to or if it was moved
+          if (goal.id === updated.goalId || goal.id === prev?.goalId) {
             const goalTasks = tasks.filter(t => t.goalId === goal.id);
-            const doneTasks = goalTasks.filter(t => 
-              (t.id === updated.id ? updated.status === "done" : t.status === "done")
-            );
-            const progress = Math.round((doneTasks.length / goalTasks.length) * 100);
+            // Include the updated task in the calculation if it belongs to this goal
+            const updatedTaskBelongsToGoal = updated.goalId === goal.id;
+            
+            // Count tasks that are already done plus the updated task if it's now done
+            const doneTasks = goalTasks.filter(t => {
+              if (t.id === updated.id && updatedTaskBelongsToGoal) {
+                return updated.status === "done";
+              }
+              return t.status === "done";
+            });
+            
+            // Calculate progress based on the ratio of completed tasks
+            const totalTasks = updatedTaskBelongsToGoal ? 
+              goalTasks.length + (prev?.goalId !== goal.id ? 1 : 0) : 
+              goalTasks.length - (prev?.goalId === goal.id ? 1 : 0);
+              
+            const progress = totalTasks > 0 ? 
+              Math.round((doneTasks.length / totalTasks) * 100) : 0;
+              
             return { ...goal, progress };
           }
           return goal;
-        })
-      );
-    }
+        });
+      });
+    }, 100);
   }, [tasks]);
 
   const moveTask = useCallback((id: string, status: TaskStatus) => {
@@ -190,6 +194,23 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
     const isCompleted = existing && existing.progress < 100 && calculatedProgress === 100;
 
     setGoals(gs => gs.map(g => g.id === updated.id ? updatedWithProgress : g));
+    
+    // Ensure all goals have their progress recalculated
+    setTimeout(() => {
+      setGoals(currentGoals => {
+        return currentGoals.map(g => {
+          if (g.id === updated.id) return updatedWithProgress;
+          
+          const gTasks = tasks.filter(t => t.goalId === g.id);
+          const gCompletedTasks = gTasks.filter(t => t.status === "done");
+          const gProgress = gTasks.length > 0 
+            ? Math.round((gCompletedTasks.length / gTasks.length) * 100) 
+            : 0;
+          
+          return { ...g, progress: gProgress };
+        });
+      });
+    }, 100);
 
     if (isCompleted) {
       setUserProfile(up => {
@@ -229,7 +250,18 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
     }));
 
     setTasks(ts => [...ts, ...newTasks]);
-    setGoals(gs => gs.map(g => g.id === id ? { ...g, tasks: newTasks.map(t => t.id) } : g));
+    
+    // Update the goal with the task IDs and set progress to 0 initially
+    setGoals(gs => gs.map(g => {
+      if (g.id === id) {
+        return { 
+          ...g, 
+          tasks: newTasks.map(t => t.id),
+          progress: 0 // Explicitly set to 0 since no tasks are completed yet
+        };
+      }
+      return g;
+    }));
 
     return goal;
   }, []);
@@ -314,8 +346,12 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
       const totalTasks = goalTasks.length || 1;
       const earnedXP = goalTasks.reduce((sum, t) => t.status === "done" ? sum + (t.xpReward || 0) : sum, 0);
       
+      // Calculate accurate progress based on task completion
+      const calculatedProgress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+      
       return {
         ...goal,
+        progress: calculatedProgress, // Override the stored progress with calculated value
         completedTasks,
         totalTasks,
         earnedXP

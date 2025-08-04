@@ -118,14 +118,22 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
     const prev = tasks.find(t => t.id === updated.id);
 
     // If task is already completed, don't allow changing it back
-    if (prev?.isCompleted) {
+    if (prev?.isCompleted || prev?.status === "done") {
       console.log('Task is already completed, cannot change state');
       return;
     }
 
-    setTasks(ts => ts.map(t => (t.id === updated.id ? updated : t)));
+    // Ensure isCompleted flag matches status
+    const taskToUpdate = {
+      ...updated,
+      isCompleted: updated.status === "done",
+      completedAt: updated.status === "done" ? (updated.completedAt || new Date().toISOString()) : undefined
+    };
+
+    setTasks(ts => ts.map(t => (t.id === updated.id ? taskToUpdate : t)));
 
     if (updated.status === "done" && prev?.status !== "done") {
+      console.log('Task completed:', updated.title);
       // Award XP based on task type
       const xpReward = updated.isHighImpact ? 15 : 5;
       
@@ -136,37 +144,27 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
       });
     }
     
-    // Always recalculate progress for all goals to ensure consistency
+    // Check for goal completion after task update
     setTimeout(() => {
+      const goalId = taskToUpdate.goalId;
+      if (!goalId) return;
+      
+      // Get current tasks for this goal (including the updated task)
+      const currentTasks = tasks.map(t => t.id === taskToUpdate.id ? taskToUpdate : t);
+      const goalTasks = currentTasks.filter(t => t.goalId === goalId);
+      const completedTasks = goalTasks.filter(t => t.status === "done");
+      const progress = goalTasks.length > 0 ? Math.round((completedTasks.length / goalTasks.length) * 100) : 0;
+      
+      console.log(`Goal ${goalId} progress: ${completedTasks.length}/${goalTasks.length} = ${progress}%`);
+      
       setGoals(gs => {
-        const updatedGoals = gs.map(goal => {
-          // Only recalculate for the goal this task belongs to or if it was moved
-          if (goal.id === updated.goalId || goal.id === prev?.goalId) {
-            const goalTasks = tasks.filter(t => t.goalId === goal.id);
-            // Include the updated task in the calculation if it belongs to this goal
-            const updatedTaskBelongsToGoal = updated.goalId === goal.id;
-            
-            // Count tasks that are already done plus the updated task if it's now done
-            const doneTasks = goalTasks.filter(t => {
-              if (t.id === updated.id && updatedTaskBelongsToGoal) {
-                return updated.status === "done";
-              }
-              return t.status === "done";
-            });
-            
-            // Calculate progress based on the ratio of completed tasks
-            const totalTasks = updatedTaskBelongsToGoal ? 
-              goalTasks.length + (prev?.goalId !== goal.id ? 1 : 0) : 
-              goalTasks.length - (prev?.goalId === goal.id ? 1 : 0);
-              
-            const progress = totalTasks > 0 ? 
-              Math.round((doneTasks.length / totalTasks) * 100) : 0;
-              
+        return gs.map(goal => {
+          if (goal.id === goalId) {
             const updatedGoal = { ...goal, progress };
             
             // Check if goal is newly completed
             if (progress === 100 && goal.progress < 100) {
-              console.log('Goal completed:', goal.title);
+              console.log('🎉 Goal completed:', goal.title);
               
               // Award XP for goal completion
               setUserProfile(up => {
@@ -195,8 +193,6 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
           }
           return goal;
         });
-        
-        return updatedGoals;
       });
     }, 100);
   }, [tasks]);
@@ -206,7 +202,7 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
     if (!t) return;
     
     // If task is already completed, don't allow changing it
-    if (t.isCompleted) {
+    if (t.isCompleted || t.status === "done") {
       console.log('Task is already completed, cannot change state');
       return;
     }

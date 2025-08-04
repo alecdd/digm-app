@@ -117,11 +117,20 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
   const updateTask = useCallback((updated: Task) => {
     const prev = tasks.find(t => t.id === updated.id);
 
+    // If task is already completed, don't allow changing it back
+    if (prev?.isCompleted) {
+      console.log('Task is already completed, cannot change state');
+      return;
+    }
+
     setTasks(ts => ts.map(t => (t.id === updated.id ? updated : t)));
 
     if (updated.status === "done" && prev?.status !== "done") {
+      // Award XP based on task type
+      const xpReward = updated.isHighImpact ? 15 : 5;
+      
       setUserProfile(up => {
-        const xp = up.xp + updated.xpReward;
+        const xp = up.xp + xpReward;
         const level = getLevelInfo(xp).level;
         return { ...up, xp, level };
       });
@@ -164,6 +173,13 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
   const moveTask = useCallback((id: string, status: TaskStatus) => {
     const t = tasks.find(t => t.id === id);
     if (!t) return;
+    
+    // If task is already completed, don't allow changing it
+    if (t.isCompleted) {
+      console.log('Task is already completed, cannot change state');
+      return;
+    }
+    
     updateTask({ ...t, status, isCompleted: status === "done", completedAt: status === "done" ? new Date().toISOString() : undefined });
   }, [tasks, updateTask]);
 
@@ -231,10 +247,15 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
 
     if (isCompleted) {
       setUserProfile(up => {
-        const xp = up.xp + 100;
+        const xp = up.xp + 25; // Goal completion reward is 25 XP
         const level = getLevelInfo(xp).level;
         return { ...up, xp, level };
       });
+      
+      // Remove completed goal from the list after animation
+      setTimeout(() => {
+        setGoals(gs => gs.filter(g => g.id !== updated.id));
+      }, 5500);
 
       setCompletedGoal(updatedWithProgress);
       setTimeout(() => setCompletedGoal(null), 5000);
@@ -255,7 +276,7 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
         status: 'open',
         isHighImpact: true,
         isCompleted: false,
-        xpReward: 15
+        xpReward: 15 // High impact tasks are worth 15 XP
       }];
       console.log('Created default task for goal:', g.title);
     }

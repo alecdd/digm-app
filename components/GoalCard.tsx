@@ -16,16 +16,18 @@ export default function GoalCard({ goal }: GoalCardProps) {
     return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear().toString().slice(2)}`;
   };
 
+  const isCompleted = goal.progress === 100;
+
   return (
     <>
       <TouchableOpacity 
-        style={styles.container} 
+        style={[styles.container, isCompleted && styles.completedContainer]} 
         testID={`goal-card-${goal.id}`}
         onPress={() => setDetailModalVisible(true)}
         activeOpacity={0.7}
       >
         <View style={styles.header}>
-          <Text style={styles.title}>{goal.title}</Text>
+          <Text style={[styles.title, isCompleted && styles.completedTitle]}>{goal.title}</Text>
           <Text style={styles.date}>{formatDate(goal.dueDate)}</Text>
         </View>
         <View style={styles.progressContainer}>
@@ -63,6 +65,14 @@ const styles = StyleSheet.create({
     elevation: 3,
     borderLeftWidth: 2,
     borderLeftColor: colors.primary,
+  },
+  completedContainer: {
+    backgroundColor: colors.success + "10",
+    borderLeftColor: colors.success,
+  },
+  completedTitle: {
+    textDecorationLine: "line-through",
+    color: colors.textSecondary,
   },
   header: {
     flexDirection: "row",

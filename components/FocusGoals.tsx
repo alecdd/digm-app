@@ -70,12 +70,12 @@ export default function FocusGoals({ onSeeAllPress }: FocusGoalsProps) {
         focusGoals.map((goal) => (
           <TouchableOpacity
             key={goal.id}
-            style={styles.goalCard}
+            style={[styles.goalCard, goal.progress === 100 && styles.completedGoalCard]}
             onPress={() => setSelectedGoal(goal.id)}
             activeOpacity={0.7}
           >
             <View style={styles.goalHeader}>
-              <Text style={styles.goalTitle}>{goal.title}</Text>
+              <Text style={[styles.goalTitle, goal.progress === 100 && styles.completedGoalTitle]}>{goal.title}</Text>
               <View style={styles.goalActions}>
                 <TouchableOpacity
                   onPress={() => handleTogglePin(goal.id)}
@@ -162,6 +162,8 @@ const styles = StyleSheet.create({
   goalCard: { backgroundColor: colors.cardLight, borderRadius: 12, padding: 16, marginBottom: 12, borderLeftWidth: 4, borderLeftColor: colors.primary },
   goalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   goalTitle: { fontSize: 18, fontWeight: 'bold', color: colors.text, flex: 1 },
+  completedGoalTitle: { textDecorationLine: 'line-through', color: colors.textSecondary },
+  completedGoalCard: { backgroundColor: colors.success + "10", borderLeftColor: colors.success },
   goalActions: { flexDirection: 'row' },
   actionButton: { paddingHorizontal: 6 },
   progressContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },

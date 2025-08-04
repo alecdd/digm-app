@@ -6,11 +6,12 @@ import VisionSnapshot from "@/components/VisionSnapshot";
 import FocusGoals from "@/components/FocusGoals";
 import HighImpactTasks from "@/components/HighImpactTasks";
 import WorkflowSection from "@/components/WorkflowSection";
+import GoalCompletionEffect from "@/components/GoalCompletionEffect";
 import { Task } from "@/types";
 import colors from "@/constants/colors";
 
 export default function HomeScreen() {
-  const { userProfile, quote, tasksByStatus, updateTask, highImpactTasks } = useDigmStore();
+  const { userProfile, quote, tasksByStatus, updateTask, highImpactTasks, completedGoal, clearCompletedGoal } = useDigmStore();
 
   const handleToggleTask = useCallback((task: Task) => {
     const updatedTask = {
@@ -36,21 +37,32 @@ export default function HomeScreen() {
   }, [tasksByStatus, updateTask]);
 
   return (
-    <ScrollView style={styles.container} testID="home-screen">
-      <View style={styles.content}>
-        <QuoteCard quote={quote.quote} author={quote.author} />
-        <VisionSnapshot vision={userProfile.vision} />
-        <FocusGoals />
-        <HighImpactTasks 
-          tasks={highImpactTasks} 
-          onToggleTask={handleToggleTask} 
+    <>
+      <ScrollView style={styles.container} testID="home-screen">
+        <View style={styles.content}>
+          <QuoteCard quote={quote.quote} author={quote.author} />
+          <VisionSnapshot vision={userProfile.vision} />
+          <FocusGoals />
+          <HighImpactTasks 
+            tasks={highImpactTasks} 
+            onToggleTask={handleToggleTask} 
+          />
+          <WorkflowSection 
+            tasks={tasksByStatus} 
+            onMoveTask={handleMoveTask} 
+          />
+        </View>
+      </ScrollView>
+      
+      {/* Goal Completion Effect */}
+      {completedGoal && (
+        <GoalCompletionEffect
+          visible={!!completedGoal}
+          goalTitle={completedGoal.title}
+          onAnimationEnd={clearCompletedGoal}
         />
-        <WorkflowSection 
-          tasks={tasksByStatus} 
-          onMoveTask={handleMoveTask} 
-        />
-      </View>
-    </ScrollView>
+      )}
+    </>
   );
 }
 

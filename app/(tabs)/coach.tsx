@@ -14,11 +14,14 @@ import { Send } from "lucide-react-native";
 import { Stack } from "expo-router";
 import colors from "@/constants/colors";
 import { useCoachStore } from "@/hooks/useCoachStore";
+import { useDigmStore } from "@/hooks/useDigmStore";
 import ChatMessage from "@/components/ChatMessage";
 import SuggestionChip from "@/components/SuggestionChip";
+import GoalCompletionEffect from "@/components/GoalCompletionEffect";
 
 export default function CoachScreen() {
   const { messages, isLoading, sendMessage, getSuggestions, loadMessages } = useCoachStore();
+  const { completedGoal, clearCompletedGoal } = useDigmStore();
   const [inputText, setInputText] = useState("");
   const flatListRef = useRef<FlatList>(null);
 
@@ -114,6 +117,15 @@ export default function CoachScreen() {
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Coach is typing...</Text>
         </View>
+      )}
+      
+      {/* Goal Completion Effect */}
+      {completedGoal && (
+        <GoalCompletionEffect
+          visible={!!completedGoal}
+          goalTitle={completedGoal.title}
+          onAnimationEnd={clearCompletedGoal}
+        />
       )}
     </KeyboardAvoidingView>
   );

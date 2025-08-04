@@ -5,9 +5,10 @@ import { Stack, useRouter } from "expo-router";
 import colors from "@/constants/colors";
 import { useDigmStore } from "@/hooks/useDigmStore";
 import JournalEntryCard from "@/components/JournalEntryCard";
+import GoalCompletionEffect from "@/components/GoalCompletionEffect";
 
 export default function JournalScreen() {
-  const { journalEntries } = useDigmStore();
+  const { journalEntries, completedGoal, clearCompletedGoal } = useDigmStore();
   const router = useRouter();
 
   const handleNewEntry = useCallback(() => {
@@ -50,6 +51,15 @@ export default function JournalScreen() {
             No journal entries yet. Start reflecting on your day!
           </Text>
         </View>
+      )}
+      
+      {/* Goal Completion Effect */}
+      {completedGoal && (
+        <GoalCompletionEffect
+          visible={!!completedGoal}
+          goalTitle={completedGoal.title}
+          onAnimationEnd={clearCompletedGoal}
+        />
       )}
     </View>
   );

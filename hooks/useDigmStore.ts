@@ -139,7 +139,7 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
     // Always recalculate progress for all goals to ensure consistency
     setTimeout(() => {
       setGoals(gs => {
-        return gs.map(goal => {
+        const updatedGoals = gs.map(goal => {
           // Only recalculate for the goal this task belongs to or if it was moved
           if (goal.id === updated.goalId || goal.id === prev?.goalId) {
             const goalTasks = tasks.filter(t => t.goalId === goal.id);
@@ -162,10 +162,41 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
             const progress = totalTasks > 0 ? 
               Math.round((doneTasks.length / totalTasks) * 100) : 0;
               
-            return { ...goal, progress };
+            const updatedGoal = { ...goal, progress };
+            
+            // Check if goal is newly completed
+            if (progress === 100 && goal.progress < 100) {
+              console.log('Goal completed:', goal.title);
+              
+              // Award XP for goal completion
+              setUserProfile(up => {
+                const xp = up.xp + 50; // 50 XP for goal completion
+                const level = getLevelInfo(xp).level;
+                return { ...up, xp, level };
+              });
+              
+              // Unpin the goal if it's pinned
+              if (pinnedGoalIds.includes(goal.id)) {
+                console.log('Unpinning completed goal:', goal.id);
+                setPinnedGoalIds(current => current.filter(id => id !== goal.id));
+              }
+              
+              // Set completed goal to trigger animation
+              setCompletedGoal(updatedGoal);
+              
+              // Remove completed goal from the list after animation
+              setTimeout(() => {
+                setGoals(gs => gs.filter(g => g.id !== goal.id));
+                setCompletedGoal(null);
+              }, 5500);
+            }
+            
+            return updatedGoal;
           }
           return goal;
         });
+        
+        return updatedGoals;
       });
     }, 100);
   }, [tasks]);
@@ -246,6 +277,8 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
     }, 100);
 
     if (isCompleted) {
+      console.log('Goal completed via updateGoal:', updated.title);
+      
       setUserProfile(up => {
         const xp = up.xp + 50; // Goal completion reward is 50 XP (25 XP base + 25 XP bonus)
         const level = getLevelInfo(xp).level;
@@ -258,13 +291,14 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
         setPinnedGoalIds(current => current.filter(id => id !== updated.id));
       }
       
+      // Set completed goal to trigger animation
+      setCompletedGoal(updatedWithProgress);
+      
       // Remove completed goal from the list after animation
       setTimeout(() => {
         setGoals(gs => gs.filter(g => g.id !== updated.id));
+        setCompletedGoal(null);
       }, 5500);
-
-      setCompletedGoal(updatedWithProgress);
-      setTimeout(() => setCompletedGoal(null), 5000);
     }
     
     return updatedWithProgress;

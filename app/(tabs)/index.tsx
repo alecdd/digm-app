@@ -12,6 +12,11 @@ import colors from "@/constants/colors";
 
 export default function HomeScreen() {
   const { userProfile, quote, tasksByStatus, updateTask, highImpactTasks, completedGoal, clearCompletedGoal } = useDigmStore();
+  
+  // Debug logging for completedGoal state
+  React.useEffect(() => {
+    console.log('🏠 HomeScreen: completedGoal state changed:', completedGoal);
+  }, [completedGoal]);
 
   const handleToggleTask = useCallback((task: Task) => {
     // Don't allow toggling if task is already completed

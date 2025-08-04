@@ -16,7 +16,7 @@ export default function TaskCheckbox({ task, onToggle }: TaskCheckboxProps) {
         styles.container,
         task.isCompleted && styles.completedContainer
       ]}
-      onPress={onToggle}
+      onPress={task.isCompleted ? undefined : onToggle}
       testID={`task-checkbox-${task.id}`}
     >
       <View style={styles.checkbox}>
@@ -81,6 +81,7 @@ const styles = StyleSheet.create({
   titleCompleted: {
     textDecorationLine: "line-through",
     color: colors.textSecondary,
+    fontStyle: "italic",
   },
   badges: {
     flexDirection: "row",

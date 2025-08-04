@@ -71,7 +71,7 @@ export const mockTasks: Task[] = [
     isHighImpact: false,
     isCompleted: false,
     goalId: "goal1",
-    xpReward: 10,
+    xpReward: 5,
     createdAt: new Date().toISOString(),
   },
   {
@@ -81,7 +81,7 @@ export const mockTasks: Task[] = [
     isHighImpact: false,
     isCompleted: false,
     goalId: "goal3",
-    xpReward: 10,
+    xpReward: 5,
     createdAt: new Date().toISOString(),
   },
   {

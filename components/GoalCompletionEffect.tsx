@@ -84,7 +84,7 @@ export default function GoalCompletionEffect({
         <Text style={styles.message}>
           Congratulations! You&apos;ve successfully completed your goal.
           {'\n\n'}
-          +100 XP
+          +25 XP
         </Text>
       </Animated.View>
       

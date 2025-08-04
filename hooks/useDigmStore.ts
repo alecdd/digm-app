@@ -252,6 +252,12 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
         return { ...up, xp, level };
       });
       
+      // Unpin the goal if it's pinned
+      if (pinnedGoalIds.includes(updated.id)) {
+        console.log('Unpinning completed goal:', updated.id);
+        setPinnedGoalIds(current => current.filter(id => id !== updated.id));
+      }
+      
       // Remove completed goal from the list after animation
       setTimeout(() => {
         setGoals(gs => gs.filter(g => g.id !== updated.id));
@@ -386,7 +392,8 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
   const focusGoals = useMemo(() => {
     return goals.filter(goal => {
       // Include pinned goals and goals with high progress but not completed
-      return pinnedGoalIds.includes(goal.id) || (goal.progress > 0 && goal.progress < 100);
+      // Exclude goals with 100% progress (completed goals)
+      return (pinnedGoalIds.includes(goal.id) || goal.progress > 0) && goal.progress < 100;
     }).map(goal => {
       const goalTasks = tasks.filter(t => t.goalId === goal.id);
       const completedTasks = goalTasks.filter(t => t.status === "done").length;

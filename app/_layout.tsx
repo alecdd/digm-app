@@ -4,11 +4,10 @@ import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StatusBar } from "expo-status-bar";
-import { DigmProvider, useDigmStore } from "@/hooks/useDigmStore";
+import { DigmProvider } from "@/hooks/useDigmStore";
 import { CoachProvider } from "@/hooks/useCoachStore";
 import { View, StyleSheet } from "react-native";
 import colors from "@/constants/colors";
-import XPBar from "@/components/XPBar";
 
 const styles = StyleSheet.create({
   container: {
@@ -23,32 +22,24 @@ SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient();
 
 function RootLayoutNav() {
-  const { userProfile } = useDigmStore();
-  
   return (
-    <View style={{ flex: 1 }}>
-      <XPBar 
-        currentXP={userProfile.xp} 
-        level={userProfile.level} 
-      />
-      <Stack 
-        screenOptions={{ 
-          headerBackTitle: "Back",
-          headerStyle: {
-            backgroundColor: colors.background,
-          },
-          headerTintColor: colors.text,
-          headerTitleStyle: {
-            fontWeight: "bold",
-          },
-          contentStyle: {
-            backgroundColor: colors.background,
-          },
-        }}
-      >
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      </Stack>
-    </View>
+    <Stack 
+      screenOptions={{ 
+        headerBackTitle: "Back",
+        headerStyle: {
+          backgroundColor: colors.background,
+        },
+        headerTintColor: colors.text,
+        headerTitleStyle: {
+          fontWeight: "bold",
+        },
+        contentStyle: {
+          backgroundColor: colors.background,
+        },
+      }}
+    >
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+    </Stack>
   );
 }
 

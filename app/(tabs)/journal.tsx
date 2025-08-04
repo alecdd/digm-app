@@ -21,7 +21,7 @@ export default function JournalScreen() {
 
   return (
     <View style={styles.container} testID="journal-screen">
-      <Stack.Screen options={{ title: "📓 DIGMSHIFT Journal" }} />
+      <Stack.Screen options={{ headerShown: false }} />
       
       <View style={styles.header}>
         <TouchableOpacity 

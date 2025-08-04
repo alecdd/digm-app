@@ -240,23 +240,32 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
         isCompleted: false,
         xpReward: 15
       }];
+      console.log('Created default task for goal:', g.title);
     }
 
-    const newTasks = initialTasks.map(t => ({
-      ...t,
-      id: `task${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      createdAt: new Date().toISOString(),
-      goalId: id,
-    }));
+    // Generate unique IDs for each task
+    const newTasks = initialTasks.map(t => {
+      const taskId = `task${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      console.log(`Created task: ${t.title} with ID: ${taskId} for goal: ${id}`);
+      return {
+        ...t,
+        id: taskId,
+        createdAt: new Date().toISOString(),
+        goalId: id,
+      };
+    });
 
     setTasks(ts => [...ts, ...newTasks]);
     
     // Update the goal with the task IDs and set progress to 0 initially
+    const taskIds = newTasks.map(t => t.id);
+    console.log(`Updating goal ${id} with task IDs:`, taskIds);
+    
     setGoals(gs => gs.map(g => {
       if (g.id === id) {
         return { 
           ...g, 
-          tasks: newTasks.map(t => t.id),
+          tasks: taskIds,
           progress: 0 // Explicitly set to 0 since no tasks are completed yet
         };
       }

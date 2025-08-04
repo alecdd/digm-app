@@ -247,7 +247,7 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
 
     if (isCompleted) {
       setUserProfile(up => {
-        const xp = up.xp + 25; // Goal completion reward is 25 XP
+        const xp = up.xp + 50; // Goal completion reward is 50 XP (25 XP base + 25 XP bonus)
         const level = getLevelInfo(xp).level;
         return { ...up, xp, level };
       });

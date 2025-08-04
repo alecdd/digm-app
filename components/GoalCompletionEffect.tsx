@@ -81,10 +81,11 @@ export default function GoalCompletionEffect({
       >
         <Text style={styles.title}>🏆 GOAL COMPLETED! 🏆</Text>
         <Text style={styles.goalTitle}>{goalTitle}</Text>
+        <Text style={styles.quote}>&quot;A goal without a plan is just a wish.&quot;</Text>
         <Text style={styles.message}>
-          Congratulations! You&apos;ve successfully completed your goal.
+          You are one step closer to your Vision
           {'\n\n'}
-          +25 XP
+          +50 XP
         </Text>
       </Animated.View>
       
@@ -105,6 +106,13 @@ export default function GoalCompletionEffect({
 }
 
 const styles = StyleSheet.create({
+  quote: {
+    fontSize: 18,
+    fontStyle: 'italic',
+    color: colors.textSecondary,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
   container: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',

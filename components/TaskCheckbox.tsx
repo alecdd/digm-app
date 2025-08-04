@@ -14,13 +14,13 @@ export default function TaskCheckbox({ task, onToggle }: TaskCheckboxProps) {
     <TouchableOpacity 
       style={[
         styles.container,
-        task.isCompleted && styles.completedContainer
+        (task.isCompleted || task.status === "done") && styles.completedContainer
       ]}
-      onPress={task.isCompleted ? undefined : onToggle}
+      onPress={(task.isCompleted || task.status === "done") ? undefined : onToggle}
       testID={`task-checkbox-${task.id}`}
     >
       <View style={styles.checkbox}>
-        {task.isCompleted ? (
+        {(task.isCompleted || task.status === "done") ? (
           <CheckCircle color={colors.success} size={24} />
         ) : (
           <Circle color={colors.primary} size={24} />
@@ -29,7 +29,7 @@ export default function TaskCheckbox({ task, onToggle }: TaskCheckboxProps) {
       <View style={styles.content}>
         <Text style={[
           styles.title,
-          task.isCompleted && styles.titleCompleted
+          (task.isCompleted || task.status === "done") && styles.titleCompleted
         ]}>
           {task.title}
         </Text>

@@ -167,6 +167,8 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
               // Check if goal is newly completed
               if (progress === 100 && goal.progress < 100) {
                 console.log('🎉🎉🎉 GOAL COMPLETED:', goal.title);
+                console.log('🎯 Goal progress changed from', goal.progress, 'to', progress);
+                console.log('🎯 Goal tasks:', goalTasks.length, 'Completed tasks:', completedTasks.length);
                 
                 // Award XP for goal completion
                 setUserProfile(up => {
@@ -184,12 +186,12 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
                 
                 // Set completed goal to trigger animation
                 console.log('🎊 Setting completed goal for animation:', updatedGoal.title);
+                console.log('🎊 completedGoal state will be set to:', updatedGoal);
                 setCompletedGoal(updatedGoal);
                 
-                // Remove completed goal from the list after animation
+                // Clear completed goal state after animation (but keep goal in profile)
                 setTimeout(() => {
-                  console.log('🗑️ Removing completed goal from list:', goal.title);
-                  setGoals(gs => gs.filter(g => g.id !== goal.id));
+                  console.log('🎊 Clearing completed goal animation state:', goal.title);
                   setCompletedGoal(null);
                 }, 5500);
               }
@@ -298,9 +300,8 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
       // Set completed goal to trigger animation
       setCompletedGoal(updatedWithProgress);
       
-      // Remove completed goal from the list after animation
+      // Clear completed goal state after animation (but keep goal in profile)
       setTimeout(() => {
-        setGoals(gs => gs.filter(g => g.id !== updated.id));
         setCompletedGoal(null);
       }, 5500);
     }
@@ -429,9 +430,9 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
 
   const focusGoals = useMemo(() => {
     return goals.filter(goal => {
-      // Include pinned goals and goals with high progress but not completed
-      // Exclude goals with 100% progress (completed goals)
-      return (pinnedGoalIds.includes(goal.id) || goal.progress > 0) && goal.progress < 100;
+      // Only include pinned goals that are not completed (progress < 100)
+      // This ensures completed goals are unpinned from home screen
+      return pinnedGoalIds.includes(goal.id) && goal.progress < 100;
     }).map(goal => {
       const goalTasks = tasks.filter(t => t.goalId === goal.id);
       const completedTasks = goalTasks.filter(t => t.status === "done").length;

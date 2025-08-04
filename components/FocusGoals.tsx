@@ -17,7 +17,7 @@ export default function FocusGoals({ onSeeAllPress }: FocusGoalsProps) {
   const [editingGoal, setEditingGoal] = useState<string | null>(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const router = useRouter();
-  const { focusGoals, pinnedGoalIds, togglePinGoal, updateGoal, updateTask, deleteGoal, calculateGoalProgress } = useDigmStore();
+  const { focusGoals, pinnedGoalIds, togglePinGoal, updateGoal, updateTask, deleteGoal } = useDigmStore();
 
   useEffect(() => {
     console.log('FocusGoals - pinnedGoalIds changed:', pinnedGoalIds);

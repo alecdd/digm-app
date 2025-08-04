@@ -6,10 +6,14 @@ import colors from '@/constants/colors';
 let ConfettiCannon: any = null;
 if (Platform.OS !== 'web') {
   try {
-    ConfettiCannon = require('react-native-confetti-cannon').default;
+    const ConfettiCannonModule = require('react-native-confetti-cannon');
+    ConfettiCannon = ConfettiCannonModule.default || ConfettiCannonModule;
+    console.log('✅ ConfettiCannon loaded successfully');
   } catch (e) {
-    console.warn('ConfettiCannon not available:', e);
+    console.warn('❌ ConfettiCannon not available:', e);
   }
+} else {
+  console.log('🌐 Web platform detected - ConfettiCannon disabled');
 }
 
 interface GoalCompletionEffectProps {
@@ -28,6 +32,8 @@ export default function GoalCompletionEffect({
   const confettiRef = useRef<ConfettiCannon>(null);
 
   useEffect(() => {
+    console.log('🎊 GoalCompletionEffect: Effect triggered. Visible:', visible, 'Goal:', goalTitle);
+    
     if (visible) {
       console.log('🎊 GoalCompletionEffect: Starting animation for goal:', goalTitle);
       
@@ -51,9 +57,14 @@ export default function GoalCompletionEffect({
       ]).start();
       
       // Trigger confetti
-      if (confettiRef.current && Platform.OS !== 'web' && ConfettiCannon) {
+      if (Platform.OS !== 'web' && ConfettiCannon) {
         console.log('🎆 Triggering confetti cannon!');
-        confettiRef.current.start();
+        // Small delay to ensure component is mounted
+        setTimeout(() => {
+          if (confettiRef.current) {
+            confettiRef.current.start();
+          }
+        }, 100);
       } else {
         console.log('🎆 Confetti not available - Platform:', Platform.OS, 'ConfettiCannon:', !!ConfettiCannon);
       }

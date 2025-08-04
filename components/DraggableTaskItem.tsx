@@ -145,7 +145,14 @@ export default function DraggableTaskItem({
           <Text style={styles.dragHandleIcon}>⋮⋮</Text>
         </View>
         <View style={styles.taskContent}>
-          <Text style={styles.taskTitle}>{task.title}</Text>
+          <Text
+            style={[
+              styles.taskTitle,
+              (task.status === 'done' || task.isCompleted) && styles.taskTitleDone
+            ]}
+          >
+            {task.title}
+					</Text>
           {goalTitle && (
             <Text style={styles.goalLink}>Tied to: {goalTitle}</Text>
           )}
@@ -164,7 +171,14 @@ export default function DraggableTaskItem({
           <Text style={styles.dragHandleIcon}>⋮⋮</Text>
         </View>
         <View style={styles.taskContent}>
-          <Text style={styles.taskTitle}>{task.title}</Text>
+          <Text
+            style={[
+              styles.taskTitle,
+              (task.status === 'done' || task.isCompleted) && styles.taskTitleDone
+            ]}
+          >
+            {task.title}
+          </Text>
           {goalTitle && (
             <Text style={styles.goalLink}>Tied to: {goalTitle}</Text>
           )}

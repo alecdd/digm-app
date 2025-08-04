@@ -71,12 +71,12 @@ export default function GoalTimeframeCard({ title, goals, onAddGoal }: GoalTimef
         goals.map((goal) => (
           <TouchableOpacity
             key={goal.id}
-            style={styles.goalItem}
+            style={[styles.goalItem, goal.progress === 100 && styles.completedGoalItem]}
             onPress={() => handleViewGoal(goal)}
             activeOpacity={0.7}
           >
             <View style={styles.goalHeader}>
-              <Text style={styles.goalTitle}>{goal.title}</Text>
+              <Text style={[styles.goalTitle, goal.progress === 100 && styles.completedGoalTitle]}>{goal.title}</Text>
               <View style={styles.goalActions}>
                 <TouchableOpacity
                   onPress={() => handleTogglePin(goal.id)}
@@ -209,6 +209,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.text,
     flex: 1,
+  },
+  completedGoalTitle: {
+    textDecorationLine: 'line-through',
+    color: colors.textSecondary,
+  },
+  completedGoalItem: {
+    opacity: 0.8,
   },
   goalActions: {
     flexDirection: "row",

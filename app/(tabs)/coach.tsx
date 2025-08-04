@@ -55,7 +55,7 @@ export default function CoachScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
     >
-      <Stack.Screen options={{ title: "👤 Coach DIGM" }} />
+      <Stack.Screen options={{ headerShown: false }} />
       
       <FlatList
         ref={flatListRef}

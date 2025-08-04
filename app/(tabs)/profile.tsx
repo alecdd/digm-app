@@ -51,7 +51,7 @@ export default function ProfileScreen() {
 
   return (
     <ScrollView style={styles.container} testID="profile-screen">
-      <Stack.Screen options={{ title: "Vision & Goals" }} />
+      <Stack.Screen options={{ headerShown: false }} />
       
       <View style={styles.visionContainer}>
         <View style={styles.visionHeader}>

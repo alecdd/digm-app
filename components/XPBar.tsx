@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
-import { StyleSheet, Text, View, Animated, Easing, Dimensions, TouchableOpacity } from "react-native";
+import { StyleSheet, Text, View, Animated, Easing, Dimensions, TouchableOpacity, Platform } from "react-native";
 import colors, { getLevelInfo, getNextLevelInfo } from "@/constants/colors";
 import LevelUpEffect from "./LevelUpEffect";
-import { Award, Zap, TrendingUp, ChevronUp } from "lucide-react-native";
+import { Award, Zap, TrendingUp, ChevronUp, Sparkles } from "lucide-react-native";
+import { LinearGradient } from "expo-linear-gradient";
 
 interface XPBarProps {
   currentXP: number;
@@ -19,6 +20,7 @@ export default function XPBar({ currentXP, level, onLevelUp, compact = false }: 
   const badgeScaleAnim = useRef(new Animated.Value(1)).current;
   const glowOpacityAnim = useRef(new Animated.Value(0.5)).current;
   const shineAnim = useRef(new Animated.Value(-100)).current;
+  const sparkleAnim = useRef(new Animated.Value(0)).current;
   const [showLevelUpEffect, setShowLevelUpEffect] = useState(false);
   const [expanded, setExpanded] = useState(!compact);
   
@@ -37,7 +39,7 @@ export default function XPBar({ currentXP, level, onLevelUp, compact = false }: 
     const pulsate = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
-          toValue: 1.1,
+          toValue: 1.05,
           duration: 1000,
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
@@ -97,18 +99,38 @@ export default function XPBar({ currentXP, level, onLevelUp, compact = false }: 
       })
     );
     
+    // Sparkle animation
+    const sparkleAnimation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(sparkleAnim, {
+          toValue: 1,
+          duration: 1500,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(sparkleAnim, {
+          toValue: 0.3,
+          duration: 1500,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        })
+      ])
+    );
+    
     pulsate.start();
     badgePulsate.start();
     glowPulsate.start();
     shineAnimation.start();
+    sparkleAnimation.start();
     
     return () => {
       pulsate.stop();
       badgePulsate.stop();
       glowPulsate.stop();
       shineAnimation.stop();
+      sparkleAnimation.stop();
     };
-  }, [pulseAnim, badgeScaleAnim, glowOpacityAnim, shineAnim]);
+  }, [pulseAnim, badgeScaleAnim, glowOpacityAnim, shineAnim, sparkleAnim]);
 
   useEffect(() => {
     if (level > previousLevel.current) {
@@ -146,6 +168,59 @@ export default function XPBar({ currentXP, level, onLevelUp, compact = false }: 
     setExpanded(!expanded);
   };
 
+  // Determine if we should use LinearGradient (not available on web)
+  const useGradient = Platform.OS !== 'web';
+
+  const renderProgressFill = () => {
+    const progressStyle = [
+      styles.progressFill,
+      {
+        width: animatedWidth.interpolate({
+          inputRange: [0, 100],
+          outputRange: ['0%', '100%'],
+          extrapolate: 'clamp',
+        })
+      }
+    ];
+
+    if (useGradient) {
+      return (
+        <Animated.View style={progressStyle}>
+          <LinearGradient
+            colors={[colors.primary, colors.primaryLight, colors.primary]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.gradientFill}
+          >
+            {/* Shine effect */}
+            <Animated.View 
+              style={[
+                styles.shine,
+                {
+                  transform: [{ translateX: shineAnim }]
+                }
+              ]}
+            />
+          </LinearGradient>
+        </Animated.View>
+      );
+    } else {
+      return (
+        <Animated.View style={progressStyle}>
+          {/* Shine effect */}
+          <Animated.View 
+            style={[
+              styles.shine,
+              {
+                transform: [{ translateX: shineAnim }]
+              }
+            ]}
+          />
+        </Animated.View>
+      );
+    }
+  };
+
   return (
     <View style={[styles.container, compact && styles.compactContainer]} testID="xp-bar">
       <View style={styles.contentContainer}>
@@ -170,6 +245,14 @@ export default function XPBar({ currentXP, level, onLevelUp, compact = false }: 
                 { opacity: glowOpacityAnim }
               ]}
             />
+            <Animated.View 
+              style={[
+                styles.badgeSparkle,
+                { opacity: sparkleAnim }
+              ]}
+            >
+              <Sparkles color="#FFD700" size={compact ? 12 : 16} />
+            </Animated.View>
           </Animated.View>
         </TouchableOpacity>
 
@@ -187,35 +270,14 @@ export default function XPBar({ currentXP, level, onLevelUp, compact = false }: 
           
           <View style={[styles.progressContainer, compact && styles.compactProgressContainer]}>
             <View style={styles.progressBackground}>
-              <Animated.View 
-                style={[
-                  styles.progressFill,
-                  {
-                    width: animatedWidth.interpolate({
-                      inputRange: [0, 100],
-                      outputRange: ['0%', '100%'],
-                      extrapolate: 'clamp',
-                    })
-                  }
-                ]} 
-              >
-                {/* Shine effect */}
-                <Animated.View 
-                  style={[
-                    styles.shine,
-                    {
-                      transform: [{ translateX: shineAnim }]
-                    }
-                  ]}
-                />
-              </Animated.View>
+              {renderProgressFill()}
               
               <Animated.View 
                 style={[
                   styles.progressGlow,
                   {
                     opacity: pulseAnim.interpolate({
-                      inputRange: [1, 1.1],
+                      inputRange: [1, 1.05],
                       outputRange: [0.5, 0.8],
                     }),
                     transform: [{ scale: pulseAnim }]
@@ -321,9 +383,15 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   compactContainer: {
-    marginVertical: 8,
-    padding: 10,
+    marginVertical: 0,
+    marginHorizontal: 0,
+    padding: 8,
     borderRadius: 12,
+    backgroundColor: "rgba(0, 102, 255, 0.05)",
+    borderWidth: 0,
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 2,
   },
   contentContainer: {
     flexDirection: "row",
@@ -347,10 +415,11 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   compactBadge: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    marginRight: 10,
+    borderWidth: 1.5,
   },
   badgeInner: {
     alignItems: "center",
@@ -366,6 +435,12 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.primary,
     opacity: 0.5,
+  },
+  badgeSparkle: {
+    position: "absolute",
+    top: -8,
+    right: -8,
+    opacity: 0.8,
   },
   awardIcon: {
     marginBottom: 2,
@@ -417,12 +492,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   compactProgressContainer: {
-    height: 10,
-    marginBottom: 6,
+    height: 8,
+    marginBottom: 4,
   },
   progressBackground: {
     height: "100%",
-    backgroundColor: colors.progressBackground,
+    backgroundColor: "rgba(30, 30, 30, 0.8)",
     borderRadius: 8,
     overflow: "hidden",
     position: "relative",
@@ -440,6 +515,11 @@ const styles = StyleSheet.create({
     elevation: 3,
     position: "relative",
     overflow: "hidden",
+  },
+  gradientFill: {
+    width: "100%",
+    height: "100%",
+    position: "absolute",
   },
   shine: {
     position: "absolute",

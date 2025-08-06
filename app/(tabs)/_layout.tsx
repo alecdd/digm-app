@@ -1,7 +1,7 @@
 import { Tabs } from "expo-router";
-import { Home, MessageCircle, BookOpen, User } from "lucide-react-native";
+import { Home, MessageCircle, BookOpen, User, Sparkles } from "lucide-react-native";
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing } from "react-native";
 import colors from "@/constants/colors";
 import DigmLogo from "@/components/DigmLogo";
 import { useDigmStore } from "@/hooks/useDigmStore";
@@ -10,6 +10,33 @@ import XPBar from "@/components/XPBar";
 function CustomHeader() {
   const { userProfile } = useDigmStore();
   const [showXpDetails, setShowXpDetails] = React.useState(false);
+  const sparkleAnim = React.useRef(new Animated.Value(0)).current;
+  
+  React.useEffect(() => {
+    // Sparkle animation
+    const sparkleAnimation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(sparkleAnim, {
+          toValue: 1,
+          duration: 1500,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(sparkleAnim, {
+          toValue: 0.3,
+          duration: 1500,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        })
+      ])
+    );
+    
+    sparkleAnimation.start();
+    
+    return () => {
+      sparkleAnimation.stop();
+    };
+  }, [sparkleAnim]);
 
   const toggleXpDetails = () => {
     setShowXpDetails(!showXpDetails);
@@ -18,8 +45,13 @@ function CustomHeader() {
   return (
     <View style={styles.headerContainer}>
       <View style={styles.logoContainer}>
-        <DigmLogo size={32} style={styles.logo} />
-        <Text style={styles.logoText}>DIGM</Text>
+        <DigmLogo size={36} style={styles.logo} animated={true} />
+        <View style={styles.logoTextContainer}>
+          <Text style={styles.logoText}>DIGM</Text>
+          <Animated.View style={[styles.sparkleContainer, { opacity: sparkleAnim }]}>
+            <Sparkles color="#FFD700" size={14} />
+          </Animated.View>
+        </View>
       </View>
       
       <TouchableOpacity 
@@ -53,7 +85,7 @@ export default function TabLayout() {
           },
           headerStyle: {
             backgroundColor: colors.background,
-            borderBottomColor: colors.border,
+            borderBottomColor: "rgba(0, 102, 255, 0.15)",
             borderBottomWidth: 1,
             elevation: 0,
             shadowOpacity: 0,
@@ -129,26 +161,34 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 8,
     width: '100%',
   },
   logoContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 16,
   },
   logo: {
-    // Additional styling for the logo if needed
+    marginRight: 2,
+  },
+  logoTextContainer: {
+    position: 'relative',
   },
   logoText: {
     fontSize: 22,
     fontWeight: 'bold' as const,
     color: colors.text,
-    marginLeft: 8,
+    marginLeft: 6,
     letterSpacing: 1.2,
     textShadowColor: colors.primary,
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 8,
+  },
+  sparkleContainer: {
+    position: 'absolute',
+    top: -10,
+    right: -12,
   },
   xpBarContainer: {
     flex: 1,

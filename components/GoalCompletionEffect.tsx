@@ -145,6 +145,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 1000, // Lower than LevelUpEffect (10000)
     backgroundColor: 'rgba(0,0,0,0.8)',
+    width: '100%',
+    height: '100%',
   },
   messageContainer: {
     backgroundColor: colors.card,

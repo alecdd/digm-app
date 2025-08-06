@@ -106,7 +106,7 @@ export default function LevelUpEffect({
   });
 
   return (
-    <View style={styles.container} testID="level-up-effect">
+    <View style={[styles.container, { position: 'absolute', width: '100%', height: '100%' }]} testID="level-up-effect">
       <Animated.View 
         style={[
           styles.backgroundGlow,
@@ -186,8 +186,8 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    width: screenWidth,
-    height: screenHeight,
+    width: '100%',
+    height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 10000, // Higher than GoalCompletionEffect to ensure it's on top

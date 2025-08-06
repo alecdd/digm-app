@@ -32,10 +32,15 @@ export default function JournalEntryDetailScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} testID={`journal-detail-${id}`}>
+    <View style={styles.container}>
+      <View style={styles.headerSection}>
+        <Text style={styles.pageTitle}>Journal Entry</Text>
+      </View>
+      
+      <ScrollView style={styles.scrollView} testID={`journal-detail-${id}`}>
       <Stack.Screen 
         options={{ 
-          title: "Journal Entry",
+          headerShown: false,
         }} 
       />
       
@@ -69,7 +74,8 @@ export default function JournalEntryDetailScreen() {
         <Text style={styles.sectionTitle}>Value Served</Text>
         <Text style={styles.sectionContent}>{entry.valueServed || "None recorded"}</Text>
       </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -77,6 +83,21 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  headerSection: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: colors.card,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  pageTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: colors.text,
   },
   notFoundContainer: {
     flex: 1,

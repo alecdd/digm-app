@@ -22,7 +22,7 @@ export default function XPBar({ currentXP, level, onLevelUp, compact = false }: 
   const shineAnim = useRef(new Animated.Value(-100)).current;
   const sparkleAnim = useRef(new Animated.Value(0)).current;
   const [showLevelUpEffect, setShowLevelUpEffect] = useState(false);
-  const [expanded, setExpanded] = useState(!compact);
+  const [expanded, setExpanded] = useState(false);
   
   const currentLevelInfo = getLevelInfo(currentXP);
   const nextLevelInfo = getNextLevelInfo(level);
@@ -165,6 +165,7 @@ export default function XPBar({ currentXP, level, onLevelUp, compact = false }: 
   }, [level, progress, animatedWidth, confettiAnimated, onLevelUp]);
 
   const toggleExpanded = () => {
+    console.log('XP Bar toggle clicked, current expanded:', expanded);
     setExpanded(!expanded);
   };
   
@@ -172,8 +173,13 @@ export default function XPBar({ currentXP, level, onLevelUp, compact = false }: 
   useEffect(() => {
     if (expanded && compact) {
       if (Platform.OS === 'web') {
-        const handleOutsideClick = () => {
-          setExpanded(false);
+        const handleOutsideClick = (event: any) => {
+          // Check if the click is outside the XP bar component
+          const target = event.target;
+          const xpBarElement = document.querySelector('[data-testid="xp-bar"]');
+          if (xpBarElement && !xpBarElement.contains(target)) {
+            setExpanded(false);
+          }
         };
         
         // Add a timeout to prevent immediate closing when opening
@@ -186,10 +192,10 @@ export default function XPBar({ currentXP, level, onLevelUp, compact = false }: 
           document.removeEventListener('click', handleOutsideClick);
         };
       } else {
-        // For mobile, we'll use a timeout to auto-close the expanded details after 3 seconds
+        // For mobile, we'll use a timeout to auto-close the expanded details after 5 seconds
         const timer = setTimeout(() => {
           setExpanded(false);
-        }, 3000);
+        }, 5000);
         
         return () => {
           clearTimeout(timer);
@@ -252,10 +258,10 @@ export default function XPBar({ currentXP, level, onLevelUp, compact = false }: 
   };
 
   return (
-    <View style={[styles.container, compact && styles.compactContainer]} testID="xp-bar">
+    <View style={[styles.container, compact && styles.compactContainer]} testID="xp-bar" {...(Platform.OS === 'web' ? { 'data-testid': 'xp-bar' } : {})}>
       <View style={styles.contentContainer}>
         {/* Level Badge */}
-        <TouchableOpacity onPress={toggleExpanded} activeOpacity={0.8}>
+        <TouchableOpacity onPress={toggleExpanded} activeOpacity={0.8} testID="level-badge-button">
           <Animated.View 
             style={[
               styles.levelBadgeContainer,
@@ -337,7 +343,7 @@ export default function XPBar({ currentXP, level, onLevelUp, compact = false }: 
           {compact && (
             <View style={styles.compactXpRow}>
               <Text style={styles.compactXpText}>{currentXP} XP</Text>
-              <TouchableOpacity onPress={toggleExpanded} style={styles.expandButton}>
+              <TouchableOpacity onPress={toggleExpanded} style={styles.expandButton} testID="expand-button">
                 <ChevronUp size={14} color={colors.textSecondary} style={expanded ? styles.chevronUp : styles.chevronDown} />
               </TouchableOpacity>
             </View>

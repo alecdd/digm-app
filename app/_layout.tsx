@@ -8,6 +8,7 @@ import { DigmProvider } from "@/hooks/useDigmStore";
 import { CoachProvider } from "@/hooks/useCoachStore";
 import { View, StyleSheet } from "react-native";
 import colors from "@/constants/colors";
+import DigmHeader from "@/components/DigmHeader";
 
 const styles = StyleSheet.create({
   container: {
@@ -23,23 +24,36 @@ const queryClient = new QueryClient();
 
 function RootLayoutNav() {
   return (
-    <Stack 
-      screenOptions={{ 
-        headerBackTitle: "Back",
-        headerStyle: {
-          backgroundColor: colors.background,
-        },
-        headerTintColor: colors.text,
-        headerTitleStyle: {
-          fontWeight: "bold",
-        },
-        contentStyle: {
-          backgroundColor: colors.background,
-        },
-      }}
-    >
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-    </Stack>
+    <View style={{ flex: 1 }}>
+      <DigmHeader />
+      <Stack 
+        screenOptions={{ 
+          headerBackTitle: "Back",
+          headerStyle: {
+            backgroundColor: colors.background,
+          },
+          headerTintColor: colors.text,
+          headerTitleStyle: {
+            fontWeight: "bold",
+          },
+          contentStyle: {
+            backgroundColor: colors.background,
+          },
+          headerShown: false,
+        }}
+      >
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="journal/new-entry" options={{ 
+          headerShown: true,
+          title: "New Journal Entry",
+          presentation: "modal"
+        }} />
+        <Stack.Screen name="journal/entry/[id]" options={{ 
+          headerShown: true,
+          title: "Journal Entry"
+        }} />
+      </Stack>
+    </View>
   );
 }
 

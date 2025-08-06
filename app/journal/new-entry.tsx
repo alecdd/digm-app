@@ -46,14 +46,16 @@ export default function NewJournalEntryScreen() {
     >
       <Stack.Screen 
         options={{ 
-          title: "New Journal Entry",
-          headerRight: () => (
-            <TouchableOpacity onPress={handleSave}>
-              <Text style={styles.saveButton}>Save</Text>
-            </TouchableOpacity>
-          ),
+          headerShown: false,
         }} 
       />
+      
+      <View style={styles.headerSection}>
+        <Text style={styles.pageTitle}>New Journal Entry</Text>
+        <TouchableOpacity onPress={handleSave} style={styles.saveButtonContainer}>
+          <Text style={styles.saveButton}>Save</Text>
+        </TouchableOpacity>
+      </View>
       
       <ScrollView style={styles.scrollView}>
         <View style={styles.section}>
@@ -133,11 +135,31 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
+  headerSection: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: colors.card,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  pageTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: colors.text,
+  },
+  saveButtonContainer: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
   saveButton: {
-    color: colors.primary,
+    color: colors.background,
     fontSize: 16,
     fontWeight: "600",
-    paddingHorizontal: 16,
   },
   section: {
     padding: 16,

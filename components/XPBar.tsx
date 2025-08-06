@@ -167,6 +167,7 @@ export default function XPBar({ currentXP, level, onLevelUp, compact = false }: 
   const toggleExpanded = () => {
     console.log('XP Bar toggle clicked, current expanded:', expanded);
     console.log('Setting expanded to:', !expanded);
+    console.log('Current level:', level, 'Current XP:', currentXP);
     setExpanded(!expanded);
   };
   
@@ -434,7 +435,7 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 4,
     padding: 16,
-    overflow: "hidden",
+    overflow: "visible",
   },
   compactContainer: {
     marginVertical: 0,
@@ -448,6 +449,8 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 3,
     minWidth: 120,
+    overflow: "visible",
+    zIndex: 1000,
   },
   contentContainer: {
     flexDirection: "row",
@@ -697,20 +700,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderTopWidth: 1,
     borderTopColor: "rgba(0, 102, 255, 0.2)",
-    backgroundColor: "rgba(0, 0, 0, 0.95)",
+    backgroundColor: "rgba(0, 0, 0, 0.98)",
     borderRadius: 12,
     position: "absolute",
     top: 55,
     right: -10,
-    width: 240,
-    zIndex: 10000,
+    width: 260,
+    zIndex: 999999,
     shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.8,
-    shadowRadius: 12,
-    elevation: 15,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.9,
+    shadowRadius: 16,
+    elevation: 20,
     borderWidth: 2,
-    borderColor: "rgba(0, 102, 255, 0.6)",
+    borderColor: "rgba(0, 102, 255, 0.8)",
   },
   expandedRow: {
     flexDirection: "row",

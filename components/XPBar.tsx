@@ -134,6 +134,8 @@ export default function XPBar({ currentXP, level, onLevelUp, compact = false }: 
 
   useEffect(() => {
     if (level > previousLevel.current) {
+      console.log(`🎖️ LEVEL UP DETECTED! From level ${previousLevel.current} to ${level}`);
+      
       // Trigger confetti animation
       Animated.sequence([
         Animated.timing(confettiAnimated, {
@@ -149,7 +151,8 @@ export default function XPBar({ currentXP, level, onLevelUp, compact = false }: 
         })
       ]).start();
       
-      // Show level up effect
+      // Show level up effect with priority
+      console.log('🎖️ Showing level up effect with priority');
       setShowLevelUpEffect(true);
       
       onLevelUp?.();

@@ -6,7 +6,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StatusBar } from "expo-status-bar";
 import { DigmProvider } from "@/hooks/useDigmStore";
 import { CoachProvider } from "@/hooks/useCoachStore";
-import { View, StyleSheet } from "react-native";
+import { View, StyleSheet, SafeAreaView } from "react-native";
 import colors from "@/constants/colors";
 import DigmHeader from "@/components/DigmHeader";
 
@@ -24,7 +24,7 @@ const queryClient = new QueryClient();
 
 function RootLayoutNav() {
   return (
-    <View style={{ flex: 1 }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <DigmHeader />
       <Stack 
         screenOptions={{ 
@@ -53,7 +53,7 @@ function RootLayoutNav() {
           title: "Journal Entry"
         }} />
       </Stack>
-    </View>
+    </SafeAreaView>
   );
 }
 

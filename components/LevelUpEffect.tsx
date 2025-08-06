@@ -106,7 +106,7 @@ export default function LevelUpEffect({
   });
 
   return (
-    <View style={[styles.container, { position: 'absolute', width: '100%', height: '100%' }]} testID="level-up-effect">
+    <View style={[styles.container, { position: 'absolute', width: '100%', height: '100%', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10000 }]} testID="level-up-effect">
       <Animated.View 
         style={[
           styles.backgroundGlow,

@@ -208,6 +208,8 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
                 // Always prioritize level up animation over goal completion
                 if (levelInfo.level !== newLevelInfo.level) {
                   console.log('🎊 Level up detected! Skipping goal completion animation');
+                  // Ensure completed goal is null to prevent any chance of both animations showing
+                  setCompletedGoal(null);
                 } else {
                   // No level up, show goal completion
                   setCompletedGoal(updatedGoal);
@@ -332,6 +334,8 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
       // Always prioritize level up animation over goal completion
       if (levelInfo.level !== newLevelInfo.level) {
         console.log('🎊 Level up detected! Skipping goal completion animation');
+        // Ensure completed goal is null to prevent any chance of both animations showing
+        setCompletedGoal(null);
       } else {
         // No level up, show goal completion
         setCompletedGoal(updatedWithProgress);

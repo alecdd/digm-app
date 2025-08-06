@@ -193,16 +193,30 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
                   setPinnedGoalIds(current => current.filter(id => id !== goal.id));
                 }
                 
-                // Set completed goal to trigger animation
+                // Set completed goal to trigger animation, but only if not leveling up
                 console.log('🎊 Setting completed goal for animation:', updatedGoal.title);
                 console.log('🎊 completedGoal state will be set to:', updatedGoal);
-                setCompletedGoal(updatedGoal);
                 
-                // Clear completed goal state after animation (but keep goal in profile)
-                setTimeout(() => {
-                  console.log('🎊 Clearing completed goal animation state:', goal.title);
-                  setCompletedGoal(null);
-                }, 5500);
+                // Check if we're leveling up - if so, don't show goal completion animation
+                const levelInfo = getLevelInfo(up.xp);
+                const newLevelInfo = getLevelInfo(up.xp + 50);
+                
+                console.log(`🔄 Level check: Current XP: ${up.xp}, Current level: ${levelInfo.level}`);
+                console.log(`🔄 Level check: After +50 XP: ${up.xp + 50}, New level: ${newLevelInfo.level}`);
+                console.log(`🔄 Will level up? ${levelInfo.level !== newLevelInfo.level ? 'YES' : 'NO'}`);
+                
+                if (levelInfo.level === newLevelInfo.level) {
+                  // No level up, show goal completion
+                  setCompletedGoal(updatedGoal);
+                  
+                  // Clear completed goal state after animation (but keep goal in profile)
+                  setTimeout(() => {
+                    console.log('🎊 Clearing completed goal animation state:', goal.title);
+                    setCompletedGoal(null);
+                  }, 5500);
+                } else {
+                  console.log('🎊 Level up detected! Skipping goal completion animation');
+                }
               }
               
               return updatedGoal;
@@ -306,13 +320,25 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
         setPinnedGoalIds(current => current.filter(id => id !== updated.id));
       }
       
-      // Set completed goal to trigger animation
-      setCompletedGoal(updatedWithProgress);
+      // Set completed goal to trigger animation, but only if not leveling up
+      const levelInfo = getLevelInfo(up.xp);
+      const newLevelInfo = getLevelInfo(up.xp + 50);
       
-      // Clear completed goal state after animation (but keep goal in profile)
-      setTimeout(() => {
-        setCompletedGoal(null);
-      }, 5500);
+      console.log(`🔄 Level check (updateGoal): Current XP: ${up.xp}, Current level: ${levelInfo.level}`);
+      console.log(`🔄 Level check (updateGoal): After +50 XP: ${up.xp + 50}, New level: ${newLevelInfo.level}`);
+      console.log(`🔄 Will level up? ${levelInfo.level !== newLevelInfo.level ? 'YES' : 'NO'}`);
+      
+      if (levelInfo.level === newLevelInfo.level) {
+        // No level up, show goal completion
+        setCompletedGoal(updatedWithProgress);
+        
+        // Clear completed goal state after animation (but keep goal in profile)
+        setTimeout(() => {
+          setCompletedGoal(null);
+        }, 5500);
+      } else {
+        console.log('🎊 Level up detected! Skipping goal completion animation');
+      }
     }
     
     return updatedWithProgress;

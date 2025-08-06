@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 1000,
+    zIndex: 1000, // Lower than LevelUpEffect (10000)
     backgroundColor: 'rgba(0,0,0,0.8)',
   },
   messageContainer: {

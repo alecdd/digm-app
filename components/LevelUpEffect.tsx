@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
     height: screenHeight,
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 9999,
+    zIndex: 10000, // Higher than GoalCompletionEffect to ensure it's on top
     backgroundColor: 'rgba(0,0,0,0.85)',
     elevation: 1000,
   },

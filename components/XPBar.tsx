@@ -1,16 +1,17 @@
 import React, { useEffect, useRef, useState } from "react";
-import { StyleSheet, Text, View, Animated, Easing, Dimensions } from "react-native";
+import { StyleSheet, Text, View, Animated, Easing, Dimensions, TouchableOpacity } from "react-native";
 import colors, { getLevelInfo, getNextLevelInfo } from "@/constants/colors";
 import LevelUpEffect from "./LevelUpEffect";
-import { Award, Zap, TrendingUp } from "lucide-react-native";
+import { Award, Zap, TrendingUp, ChevronUp } from "lucide-react-native";
 
 interface XPBarProps {
   currentXP: number;
   level: number;
   onLevelUp?: () => void;
+  compact?: boolean;
 }
 
-export default function XPBar({ currentXP, level, onLevelUp }: XPBarProps) {
+export default function XPBar({ currentXP, level, onLevelUp, compact = false }: XPBarProps) {
   const previousLevel = useRef(level);
   const animatedWidth = useRef(new Animated.Value(0)).current;
   const confettiAnimated = useRef(new Animated.Value(0)).current;
@@ -19,6 +20,7 @@ export default function XPBar({ currentXP, level, onLevelUp }: XPBarProps) {
   const glowOpacityAnim = useRef(new Animated.Value(0.5)).current;
   const shineAnim = useRef(new Animated.Value(-100)).current;
   const [showLevelUpEffect, setShowLevelUpEffect] = useState(false);
+  const [expanded, setExpanded] = useState(!compact);
   
   const currentLevelInfo = getLevelInfo(currentXP);
   const nextLevelInfo = getNextLevelInfo(level);
@@ -140,41 +142,50 @@ export default function XPBar({ currentXP, level, onLevelUp }: XPBarProps) {
     }).start();
   }, [level, progress, animatedWidth, confettiAnimated, onLevelUp]);
 
+  const toggleExpanded = () => {
+    setExpanded(!expanded);
+  };
+
   return (
-    <View style={styles.container} testID="xp-bar">
+    <View style={[styles.container, compact && styles.compactContainer]} testID="xp-bar">
       <View style={styles.contentContainer}>
         {/* Level Badge */}
-        <Animated.View 
-          style={[
-            styles.levelBadgeContainer,
-            {
-              transform: [{ scale: badgeScaleAnim }]
-            }
-          ]}
-        >
-          <View style={styles.badgeInner}>
-            <Award color={colors.primary} size={18} style={styles.awardIcon} />
-            <Text style={styles.levelText}>{level}</Text>
-          </View>
+        <TouchableOpacity onPress={toggleExpanded} activeOpacity={0.8}>
           <Animated.View 
             style={[
-              styles.badgeGlow,
-              { opacity: glowOpacityAnim }
+              styles.levelBadgeContainer,
+              compact && styles.compactBadge,
+              {
+                transform: [{ scale: badgeScaleAnim }]
+              }
             ]}
-          />
-        </Animated.View>
+          >
+            <View style={styles.badgeInner}>
+              <Award color={colors.primary} size={compact ? 14 : 18} style={styles.awardIcon} />
+              <Text style={[styles.levelText, compact && styles.compactLevelText]}>{level}</Text>
+            </View>
+            <Animated.View 
+              style={[
+                styles.badgeGlow,
+                { opacity: glowOpacityAnim }
+              ]}
+            />
+          </Animated.View>
+        </TouchableOpacity>
 
         {/* XP Info */}
         <View style={styles.xpInfoContainer}>
-          <View style={styles.xpTextRow}>
-            <View style={styles.xpLabelContainer}>
-              <TrendingUp color={colors.primary} size={14} style={styles.trendingIcon} />
-              <Text style={styles.xpLabel}>Experience</Text>
+          {!compact && (
+            <View style={styles.xpTextRow}>
+              <View style={styles.xpLabelContainer}>
+                <TrendingUp color={colors.primary} size={14} style={styles.trendingIcon} />
+                <Text style={styles.xpLabel}>Experience</Text>
+              </View>
+              <Text style={styles.xpValue}>{currentXP} XP</Text>
             </View>
-            <Text style={styles.xpValue}>{currentXP} XP</Text>
-          </View>
+          )}
           
-          <View style={styles.progressContainer}>
+          <View style={[styles.progressContainer, compact && styles.compactProgressContainer]}>
             <View style={styles.progressBackground}>
               <Animated.View 
                 style={[
@@ -213,7 +224,7 @@ export default function XPBar({ currentXP, level, onLevelUp }: XPBarProps) {
               />
               
               {/* Progress percentage indicator */}
-              {progressPercentage > 15 && (
+              {progressPercentage > 15 && !compact && (
                 <View style={styles.percentageContainer}>
                   <Text style={styles.percentageText}>{progressPercentage}%</Text>
                 </View>
@@ -221,15 +232,46 @@ export default function XPBar({ currentXP, level, onLevelUp }: XPBarProps) {
             </View>
           </View>
           
-          <View style={styles.xpDetailRow}>
-            <Text style={styles.xpDetail}>{currentLevelXP}/{totalLevelXP} XP in this level</Text>
+          {expanded && !compact && (
+            <View style={styles.xpDetailRow}>
+              <Text style={styles.xpDetail}>{currentLevelXP}/{totalLevelXP} XP in this level</Text>
+              <View style={styles.nextLevelContainer}>
+                <Zap color={colors.accent} size={14} style={styles.zapIcon} />
+                <Text style={styles.nextLevelText}>{xpToNextLevel > 0 ? `${xpToNextLevel} XP to Level ${level + 1}` : 'Max Level!'}</Text>
+              </View>
+            </View>
+          )}
+
+          {compact && (
+            <View style={styles.compactXpRow}>
+              <Text style={styles.compactXpText}>{currentXP} XP</Text>
+              <TouchableOpacity onPress={toggleExpanded} style={styles.expandButton}>
+                <ChevronUp size={14} color={colors.textSecondary} style={expanded ? styles.chevronUp : styles.chevronDown} />
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      </View>
+      
+      {expanded && compact && (
+        <View style={styles.expandedDetails}>
+          <View style={styles.expandedRow}>
+            <Text style={styles.expandedLabel}>Current Level:</Text>
+            <Text style={styles.expandedValue}>Level {level}</Text>
+          </View>
+          <View style={styles.expandedRow}>
+            <Text style={styles.expandedLabel}>Progress:</Text>
+            <Text style={styles.expandedValue}>{currentLevelXP}/{totalLevelXP} XP ({progressPercentage}%)</Text>
+          </View>
+          <View style={styles.expandedRow}>
+            <Text style={styles.expandedLabel}>Next Level:</Text>
             <View style={styles.nextLevelContainer}>
               <Zap color={colors.accent} size={14} style={styles.zapIcon} />
               <Text style={styles.nextLevelText}>{xpToNextLevel > 0 ? `${xpToNextLevel} XP to Level ${level + 1}` : 'Max Level!'}</Text>
             </View>
           </View>
         </View>
-      </View>
+      )}
       
       {/* Small level up indicator */}
       <Animated.View 
@@ -278,6 +320,11 @@ const styles = StyleSheet.create({
     padding: 16,
     overflow: "hidden",
   },
+  compactContainer: {
+    marginVertical: 8,
+    padding: 10,
+    borderRadius: 12,
+  },
   contentContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -298,6 +345,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.6,
     shadowRadius: 8,
     elevation: 6,
+  },
+  compactBadge: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 12,
   },
   badgeInner: {
     alignItems: "center",
@@ -324,6 +377,9 @@ const styles = StyleSheet.create({
     textShadowColor: colors.primary,
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 4,
+  },
+  compactLevelText: {
+    fontSize: 14,
   },
   xpInfoContainer: {
     flex: 1,
@@ -359,6 +415,10 @@ const styles = StyleSheet.create({
   progressContainer: {
     height: 16,
     marginBottom: 8,
+  },
+  compactProgressContainer: {
+    height: 10,
+    marginBottom: 6,
   },
   progressBackground: {
     height: "100%",
@@ -470,5 +530,47 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     borderWidth: 1,
     borderColor: colors.primary,
+  },
+  compactXpRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 2,
+  },
+  compactXpText: {
+    fontSize: 12,
+    fontWeight: "600" as const,
+    color: colors.primary,
+  },
+  expandButton: {
+    padding: 4,
+  },
+  chevronUp: {
+    transform: [{ rotate: "0deg" }],
+  },
+  chevronDown: {
+    transform: [{ rotate: "180deg" }],
+  },
+  expandedDetails: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(0, 102, 255, 0.2)",
+  },
+  expandedRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  expandedLabel: {
+    fontSize: 12,
+    fontWeight: "500" as const,
+    color: colors.textSecondary,
+  },
+  expandedValue: {
+    fontSize: 12,
+    fontWeight: "600" as const,
+    color: colors.text,
   },
 });

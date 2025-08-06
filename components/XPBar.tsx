@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
-import { StyleSheet, Text, View, Animated, Easing } from "react-native";
+import { StyleSheet, Text, View, Animated, Easing, Dimensions } from "react-native";
 import colors, { getLevelInfo, getNextLevelInfo } from "@/constants/colors";
 import LevelUpEffect from "./LevelUpEffect";
-import { Award, Zap } from "lucide-react-native";
+import { Award, Zap, TrendingUp } from "lucide-react-native";
 
 interface XPBarProps {
   currentXP: number;
@@ -17,6 +17,7 @@ export default function XPBar({ currentXP, level, onLevelUp }: XPBarProps) {
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const badgeScaleAnim = useRef(new Animated.Value(1)).current;
   const glowOpacityAnim = useRef(new Animated.Value(0.5)).current;
+  const shineAnim = useRef(new Animated.Value(-100)).current;
   const [showLevelUpEffect, setShowLevelUpEffect] = useState(false);
   
   const currentLevelInfo = getLevelInfo(currentXP);
@@ -26,6 +27,7 @@ export default function XPBar({ currentXP, level, onLevelUp }: XPBarProps) {
   const totalLevelXP = currentLevelInfo.maxXP - currentLevelInfo.minXP;
   const progress = Math.min((currentLevelXP / totalLevelXP) * 100, 100);
   const xpToNextLevel = nextLevelInfo.minXP - currentXP;
+  const progressPercentage = Math.floor(progress);
 
   // Start animations for the progress bar and badge
   useEffect(() => {
@@ -83,16 +85,28 @@ export default function XPBar({ currentXP, level, onLevelUp }: XPBarProps) {
       ])
     );
     
+    // Shine animation (moving highlight across the progress bar)
+    const shineAnimation = Animated.loop(
+      Animated.timing(shineAnim, {
+        toValue: Dimensions.get('window').width,
+        duration: 2000,
+        easing: Easing.ease,
+        useNativeDriver: true,
+      })
+    );
+    
     pulsate.start();
     badgePulsate.start();
     glowPulsate.start();
+    shineAnimation.start();
     
     return () => {
       pulsate.stop();
       badgePulsate.stop();
       glowPulsate.stop();
+      shineAnimation.stop();
     };
-  }, [pulseAnim, badgeScaleAnim, glowOpacityAnim]);
+  }, [pulseAnim, badgeScaleAnim, glowOpacityAnim, shineAnim]);
 
   useEffect(() => {
     if (level > previousLevel.current) {
@@ -153,8 +167,11 @@ export default function XPBar({ currentXP, level, onLevelUp }: XPBarProps) {
         {/* XP Info */}
         <View style={styles.xpInfoContainer}>
           <View style={styles.xpTextRow}>
-            <Text style={styles.xpLabel}>Current XP</Text>
-            <Text style={styles.xpValue}>{currentXP}</Text>
+            <View style={styles.xpLabelContainer}>
+              <TrendingUp color={colors.primary} size={14} style={styles.trendingIcon} />
+              <Text style={styles.xpLabel}>Experience</Text>
+            </View>
+            <Text style={styles.xpValue}>{currentXP} XP</Text>
           </View>
           
           <View style={styles.progressContainer}>
@@ -170,7 +187,18 @@ export default function XPBar({ currentXP, level, onLevelUp }: XPBarProps) {
                     })
                   }
                 ]} 
-              />
+              >
+                {/* Shine effect */}
+                <Animated.View 
+                  style={[
+                    styles.shine,
+                    {
+                      transform: [{ translateX: shineAnim }]
+                    }
+                  ]}
+                />
+              </Animated.View>
+              
               <Animated.View 
                 style={[
                   styles.progressGlow,
@@ -183,11 +211,18 @@ export default function XPBar({ currentXP, level, onLevelUp }: XPBarProps) {
                   }
                 ]}
               />
+              
+              {/* Progress percentage indicator */}
+              {progressPercentage > 15 && (
+                <View style={styles.percentageContainer}>
+                  <Text style={styles.percentageText}>{progressPercentage}%</Text>
+                </View>
+              )}
             </View>
           </View>
           
           <View style={styles.xpDetailRow}>
-            <Text style={styles.xpDetail}>{currentLevelXP}/{totalLevelXP} XP</Text>
+            <Text style={styles.xpDetail}>{currentLevelXP}/{totalLevelXP} XP in this level</Text>
             <View style={styles.nextLevelContainer}>
               <Zap color={colors.accent} size={14} style={styles.zapIcon} />
               <Text style={styles.nextLevelText}>{xpToNextLevel > 0 ? `${xpToNextLevel} XP to Level ${level + 1}` : 'Max Level!'}</Text>
@@ -248,9 +283,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   levelBadgeContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: colors.card,
@@ -274,7 +309,7 @@ const styles = StyleSheet.create({
     left: -5,
     right: -5,
     bottom: -5,
-    borderRadius: 30,
+    borderRadius: 35,
     borderWidth: 2,
     borderColor: colors.primary,
     opacity: 0.5,
@@ -283,7 +318,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   levelText: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "bold" as const,
     color: colors.xpColor,
     textShadowColor: colors.primary,
@@ -297,7 +332,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 6,
+    marginBottom: 8,
+  },
+  xpLabelContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  trendingIcon: {
+    marginRight: 4,
   },
   xpLabel: {
     fontSize: 14,
@@ -308,17 +350,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "bold" as const,
     color: colors.primary,
+    backgroundColor: "rgba(0, 102, 255, 0.15)",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    overflow: "hidden",
   },
   progressContainer: {
-    height: 10,
-    marginBottom: 6,
+    height: 16,
+    marginBottom: 8,
   },
   progressBackground: {
     height: "100%",
     backgroundColor: colors.progressBackground,
-    borderRadius: 6,
+    borderRadius: 8,
     overflow: "hidden",
     position: "relative",
+    borderWidth: 1,
+    borderColor: "rgba(0, 102, 255, 0.3)",
   },
   progressFill: {
     height: "100%",
@@ -329,6 +378,33 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.5,
     shadowRadius: 4,
     elevation: 3,
+    position: "relative",
+    overflow: "hidden",
+  },
+  shine: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: 40,
+    height: "100%",
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
+    transform: [{ skewX: "-20deg" }],
+  },
+  percentageContainer: {
+    position: "absolute",
+    top: 0,
+    right: 8,
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  percentageText: {
+    fontSize: 10,
+    fontWeight: "bold" as const,
+    color: "#ffffff",
+    textShadowColor: "rgba(0, 0, 0, 0.5)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   progressGlow: {
     position: "absolute",

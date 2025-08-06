@@ -108,5 +108,6 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     position: 'relative',
     zIndex: 1000,
+    overflow: 'visible',
   },
 });

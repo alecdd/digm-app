@@ -24,7 +24,7 @@ const queryClient = new QueryClient();
 
 function RootLayoutNav() {
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background, overflow: 'visible' }}>
       <DigmHeader />
       <Stack 
         screenOptions={{ 

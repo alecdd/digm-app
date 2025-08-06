@@ -12,6 +12,15 @@ function CustomHeader() {
   const currentLevelXP = userProfile.xp - currentLevelInfo.minXP;
   const totalLevelXP = currentLevelInfo.maxXP - currentLevelInfo.minXP;
   const progress = Math.min((currentLevelXP / totalLevelXP) * 100, 100);
+  
+  console.log('Header XP Debug:', {
+    userXP: userProfile.xp,
+    userLevel: userProfile.level,
+    currentLevelInfo,
+    currentLevelXP,
+    totalLevelXP,
+    progress
+  });
 
   return (
     <View style={styles.headerContainer}>
@@ -22,7 +31,7 @@ function CustomHeader() {
       
       <View style={styles.progressContainer}>
         <View style={styles.levelInfo}>
-          <Text style={styles.levelText}>Level {userProfile.level}</Text>
+          <Text style={styles.levelText}>Level {currentLevelInfo.level}</Text>
           <Text style={styles.xpText}>{currentLevelXP}/{totalLevelXP}</Text>
         </View>
         <View style={styles.progressBarContainer}>

@@ -205,7 +205,10 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
                 console.log(`🔄 Level check: After +50 XP: ${up.xp + 50}, New level: ${newLevelInfo.level}`);
                 console.log(`🔄 Will level up? ${levelInfo.level !== newLevelInfo.level ? 'YES' : 'NO'}`);
                 
-                if (levelInfo.level === newLevelInfo.level) {
+                // Always prioritize level up animation over goal completion
+                if (levelInfo.level !== newLevelInfo.level) {
+                  console.log('🎊 Level up detected! Skipping goal completion animation');
+                } else {
                   // No level up, show goal completion
                   setCompletedGoal(updatedGoal);
                   
@@ -214,8 +217,6 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
                     console.log('🎊 Clearing completed goal animation state:', goal.title);
                     setCompletedGoal(null);
                   }, 5500);
-                } else {
-                  console.log('🎊 Level up detected! Skipping goal completion animation');
                 }
               }
               
@@ -328,7 +329,10 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
       console.log(`🔄 Level check (updateGoal): After +50 XP: ${up.xp + 50}, New level: ${newLevelInfo.level}`);
       console.log(`🔄 Will level up? ${levelInfo.level !== newLevelInfo.level ? 'YES' : 'NO'}`);
       
-      if (levelInfo.level === newLevelInfo.level) {
+      // Always prioritize level up animation over goal completion
+      if (levelInfo.level !== newLevelInfo.level) {
+        console.log('🎊 Level up detected! Skipping goal completion animation');
+      } else {
         // No level up, show goal completion
         setCompletedGoal(updatedWithProgress);
         
@@ -336,8 +340,6 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
         setTimeout(() => {
           setCompletedGoal(null);
         }, 5500);
-      } else {
-        console.log('🎊 Level up detected! Skipping goal completion animation');
       }
     }
     

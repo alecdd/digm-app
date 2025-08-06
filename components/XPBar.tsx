@@ -167,6 +167,36 @@ export default function XPBar({ currentXP, level, onLevelUp, compact = false }: 
   const toggleExpanded = () => {
     setExpanded(!expanded);
   };
+  
+  // Handle clicks outside the expanded details to close it
+  useEffect(() => {
+    if (expanded && compact) {
+      if (Platform.OS === 'web') {
+        const handleOutsideClick = () => {
+          setExpanded(false);
+        };
+        
+        // Add a timeout to prevent immediate closing when opening
+        const timer = setTimeout(() => {
+          document.addEventListener('click', handleOutsideClick);
+        }, 100);
+        
+        return () => {
+          clearTimeout(timer);
+          document.removeEventListener('click', handleOutsideClick);
+        };
+      } else {
+        // For mobile, we'll use a timeout to auto-close the expanded details after 3 seconds
+        const timer = setTimeout(() => {
+          setExpanded(false);
+        }, 3000);
+        
+        return () => {
+          clearTimeout(timer);
+        };
+      }
+    }
+  }, [expanded, compact]);
 
   // Determine if we should use LinearGradient (not available on web)
   const useGradient = Platform.OS !== 'web';
@@ -236,7 +266,7 @@ export default function XPBar({ currentXP, level, onLevelUp, compact = false }: 
             ]}
           >
             <View style={styles.badgeInner}>
-              <Award color={colors.primary} size={compact ? 14 : 18} style={styles.awardIcon} />
+              <Award color={colors.primary} size={compact ? 16 : 18} style={styles.awardIcon} />
               <Text style={[styles.levelText, compact && styles.compactLevelText]}>{level}</Text>
             </View>
             <Animated.View 
@@ -251,7 +281,7 @@ export default function XPBar({ currentXP, level, onLevelUp, compact = false }: 
                 { opacity: sparkleAnim }
               ]}
             >
-              <Sparkles color="#FFD700" size={compact ? 12 : 16} />
+              <Sparkles color="#FFD700" size={compact ? 14 : 16} />
             </Animated.View>
           </Animated.View>
         </TouchableOpacity>
@@ -317,6 +347,13 @@ export default function XPBar({ currentXP, level, onLevelUp, compact = false }: 
       
       {expanded && compact && (
         <View style={styles.expandedDetails}>
+          <TouchableOpacity 
+            style={styles.closeButton} 
+            onPress={() => setExpanded(false)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.closeButtonText}>×</Text>
+          </TouchableOpacity>
           <View style={styles.expandedRow}>
             <Text style={styles.expandedLabel}>Current Level:</Text>
             <Text style={styles.expandedValue}>Level {level}</Text>
@@ -387,11 +424,13 @@ const styles = StyleSheet.create({
     marginHorizontal: 0,
     padding: 8,
     borderRadius: 12,
-    backgroundColor: "rgba(0, 102, 255, 0.05)",
-    borderWidth: 0,
-    shadowOpacity: 0.2,
+    backgroundColor: "rgba(0, 102, 255, 0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(0, 102, 255, 0.3)",
+    shadowOpacity: 0.4,
     shadowRadius: 6,
-    elevation: 2,
+    elevation: 3,
+    minWidth: 120,
   },
   contentContainer: {
     flexDirection: "row",
@@ -415,9 +454,9 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   compactBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     marginRight: 10,
     borderWidth: 1.5,
   },
@@ -619,8 +658,11 @@ const styles = StyleSheet.create({
   },
   compactXpText: {
     fontSize: 12,
-    fontWeight: "600" as const,
+    fontWeight: "700" as const,
     color: colors.primary,
+    textShadowColor: colors.primary,
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 4,
   },
   expandButton: {
     padding: 4,
@@ -634,8 +676,23 @@ const styles = StyleSheet.create({
   expandedDetails: {
     marginTop: 10,
     paddingTop: 10,
+    paddingBottom: 5,
     borderTopWidth: 1,
     borderTopColor: "rgba(0, 102, 255, 0.2)",
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    borderRadius: 8,
+    position: "absolute",
+    top: 50,
+    right: 0,
+    width: 220,
+    zIndex: 1000,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: "rgba(0, 102, 255, 0.4)",
   },
   expandedRow: {
     flexDirection: "row",
@@ -647,10 +704,31 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "500" as const,
     color: colors.textSecondary,
+    paddingLeft: 8,
   },
   expandedValue: {
     fontSize: 12,
     fontWeight: "600" as const,
     color: colors.text,
+    paddingRight: 8,
+  },
+  closeButton: {
+    position: "absolute",
+    top: 5,
+    right: 5,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 10,
+  },
+  closeButtonText: {
+    fontSize: 16,
+    fontWeight: "bold" as const,
+    color: colors.text,
+    lineHeight: 20,
+    textAlign: "center",
   },
 });

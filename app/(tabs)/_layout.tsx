@@ -160,6 +160,7 @@ const styles = StyleSheet.create({
   headerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 8,
     width: '100%',
@@ -191,7 +192,8 @@ const styles = StyleSheet.create({
     right: -12,
   },
   xpBarContainer: {
-    flex: 1,
+    width: '50%',
     marginLeft: 4,
+    alignItems: 'flex-end',
   },
 });

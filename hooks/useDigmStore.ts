@@ -90,6 +90,15 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
     setQuote(getRandomQuote());
   }, [loadData]);
 
+  // Sync level with XP on profile changes
+  useEffect(() => {
+    const correctLevelInfo = getLevelInfo(userProfile.xp);
+    if (userProfile.level !== correctLevelInfo.level) {
+      console.log(`Syncing level: XP ${userProfile.xp} should be level ${correctLevelInfo.level}, but was ${userProfile.level}`);
+      setUserProfile(up => ({ ...up, level: correctLevelInfo.level }));
+    }
+  }, [userProfile.xp]);
+
   useEffect(() => {
     saveData();
   }, [userProfile, goals, tasks, journalEntries, pinnedGoalIds]);
@@ -139,9 +148,9 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
       
       setUserProfile(up => {
         const xp = up.xp + xpReward;
-        const level = getLevelInfo(xp).level;
-        console.log(`Awarded ${xpReward} XP for task completion. Total XP: ${xp}`);
-        return { ...up, xp, level };
+        const levelInfo = getLevelInfo(xp);
+        console.log(`Awarded ${xpReward} XP for task completion. Total XP: ${xp}, Level: ${levelInfo.level}`);
+        return { ...up, xp, level: levelInfo.level };
       });
     }
     
@@ -173,9 +182,9 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
                 // Award XP for goal completion
                 setUserProfile(up => {
                   const xp = up.xp + 50; // 50 XP for goal completion
-                  const level = getLevelInfo(xp).level;
-                  console.log(`🏆 Awarded 50 XP for goal completion! Total XP: ${xp}`);
-                  return { ...up, xp, level };
+                  const levelInfo = getLevelInfo(xp);
+                  console.log(`🏆 Awarded 50 XP for goal completion! Total XP: ${xp}, Level: ${levelInfo.level}`);
+                  return { ...up, xp, level: levelInfo.level };
                 });
                 
                 // Unpin the goal if it's pinned
@@ -287,8 +296,8 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
       
       setUserProfile(up => {
         const xp = up.xp + 50; // Goal completion reward is 50 XP (25 XP base + 25 XP bonus)
-        const level = getLevelInfo(xp).level;
-        return { ...up, xp, level };
+        const levelInfo = getLevelInfo(xp);
+        return { ...up, xp, level: levelInfo.level };
       });
       
       // Unpin the goal if it's pinned

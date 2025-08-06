@@ -166,6 +166,7 @@ export default function XPBar({ currentXP, level, onLevelUp, compact = false }: 
 
   const toggleExpanded = () => {
     console.log('XP Bar toggle clicked, current expanded:', expanded);
+    console.log('Setting expanded to:', !expanded);
     setExpanded(!expanded);
   };
   
@@ -261,7 +262,12 @@ export default function XPBar({ currentXP, level, onLevelUp, compact = false }: 
     <View style={[styles.container, compact && styles.compactContainer]} testID="xp-bar" {...(Platform.OS === 'web' ? { 'data-testid': 'xp-bar' } : {})}>
       <View style={styles.contentContainer}>
         {/* Level Badge */}
-        <TouchableOpacity onPress={toggleExpanded} activeOpacity={0.8} testID="level-badge-button">
+        <TouchableOpacity 
+          onPress={toggleExpanded} 
+          activeOpacity={0.6} 
+          testID="level-badge-button"
+          style={styles.touchableArea}
+        >
           <Animated.View 
             style={[
               styles.levelBadgeContainer,
@@ -343,7 +349,12 @@ export default function XPBar({ currentXP, level, onLevelUp, compact = false }: 
           {compact && (
             <View style={styles.compactXpRow}>
               <Text style={styles.compactXpText}>{currentXP} XP</Text>
-              <TouchableOpacity onPress={toggleExpanded} style={styles.expandButton} testID="expand-button">
+              <TouchableOpacity 
+                onPress={toggleExpanded} 
+                style={styles.expandButton} 
+                testID="expand-button"
+                activeOpacity={0.6}
+              >
                 <ChevronUp size={14} color={colors.textSecondary} style={expanded ? styles.chevronUp : styles.chevronDown} />
               </TouchableOpacity>
             </View>
@@ -739,5 +750,12 @@ const styles = StyleSheet.create({
     color: colors.text,
     lineHeight: 24,
     textAlign: "center",
+  },
+  touchableArea: {
+    // Ensure the touchable area is properly sized
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

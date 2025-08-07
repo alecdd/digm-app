@@ -9,10 +9,14 @@
   },
   "dependencies": {
     "@expo/vector-icons": "^14.1.0",
+    "@hono/trpc-server": "^0.4.0",
     "@nkzw/create-context-hook": "^1.1.0",
     "@react-native-async-storage/async-storage": "2.1.2",
     "@react-navigation/native": "^7.1.6",
-    "@tanstack/react-query": "^5.83.0",
+    "@tanstack/react-query": "^5.84.1",
+    "@trpc/client": "^11.4.4",
+    "@trpc/react-query": "^11.4.4",
+    "@trpc/server": "^11.4.4",
     "expo": "^53.0.4",
     "expo-blur": "~14.1.4",
     "expo-constants": "~17.1.4",
@@ -29,6 +33,7 @@
     "expo-symbols": "~0.4.4",
     "expo-system-ui": "~5.0.6",
     "expo-web-browser": "~14.2.0",
+    "hono": "^4.8.12",
     "lucide-react-native": "^0.536.0",
     "nativewind": "^4.1.23",
     "react": "19.0.0",
@@ -42,6 +47,8 @@
     "react-native-screens": "~4.11.1",
     "react-native-svg": "15.11.2",
     "react-native-web": "^0.20.0",
+    "superjson": "^2.2.2",
+    "zod": "^4.0.15",
     "zustand": "^5.0.2"
   },
   "devDependencies": {

@@ -142,7 +142,7 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
     console.log('Updating task:', taskToUpdate.title, 'Status:', taskToUpdate.status, 'IsCompleted:', taskToUpdate.isCompleted);
 
     // Award XP for task completion
-    if (updated.status === "done" && prev?.status !== "done") {
+    if (updated.status === "done") {
       console.log('✅ Task completed:', updated.title);
       const xpReward = updated.isHighImpact ? 15 : 5;
       
@@ -198,11 +198,12 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
                 console.log('🎊 completedGoal state will be set to:', updatedGoal);
                 
                 // Check if we're leveling up - if so, don't show goal completion animation
-                const levelInfo = getLevelInfo(up.xp);
-                const newLevelInfo = getLevelInfo(up.xp + 50);
+                const currentXp = userProfile.xp;
+                const levelInfo = getLevelInfo(currentXp);
+                const newLevelInfo = getLevelInfo(currentXp + 50);
                 
-                console.log(`🔄 Level check: Current XP: ${up.xp}, Current level: ${levelInfo.level}`);
-                console.log(`🔄 Level check: After +50 XP: ${up.xp + 50}, New level: ${newLevelInfo.level}`);
+                console.log(`🔄 Level check: Current XP: ${currentXp}, Current level: ${levelInfo.level}`);
+                console.log(`🔄 Level check: After +50 XP: ${currentXp + 50}, New level: ${newLevelInfo.level}`);
                 console.log(`🔄 Will level up? ${levelInfo.level !== newLevelInfo.level ? 'YES' : 'NO'}`);
                 
                 // Always prioritize level up animation over goal completion
@@ -324,11 +325,12 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
       }
       
       // Set completed goal to trigger animation, but only if not leveling up
-      const levelInfo = getLevelInfo(up.xp);
-      const newLevelInfo = getLevelInfo(up.xp + 50);
+      const currentXp = userProfile.xp;
+      const levelInfo = getLevelInfo(currentXp);
+      const newLevelInfo = getLevelInfo(currentXp + 50);
       
-      console.log(`🔄 Level check (updateGoal): Current XP: ${up.xp}, Current level: ${levelInfo.level}`);
-      console.log(`🔄 Level check (updateGoal): After +50 XP: ${up.xp + 50}, New level: ${newLevelInfo.level}`);
+      console.log(`🔄 Level check (updateGoal): Current XP: ${currentXp}, Current level: ${levelInfo.level}`);
+      console.log(`🔄 Level check (updateGoal): After +50 XP: ${currentXp + 50}, New level: ${newLevelInfo.level}`);
       console.log(`🔄 Will level up? ${levelInfo.level !== newLevelInfo.level ? 'YES' : 'NO'}`);
       
       // Always prioritize level up animation over goal completion

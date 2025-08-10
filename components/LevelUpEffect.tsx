@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useMemo } from 'react';
-import { StyleSheet, View, Text, Animated, Platform, Dimensions } from 'react-native';
+import { StyleSheet, View, Text, Animated, Platform, Dimensions, Modal } from 'react-native';
 import colors from '@/constants/colors';
 import { CheckCircle, Target, Plus } from '@/lib/icons';
 
@@ -117,77 +117,86 @@ export default function LevelUpEffect({
   const spin = rotateAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
 
   return (
-    <View style={styles.container} testID="level-up-effect">
-      <Animated.View 
-        style={[
-          styles.backgroundGlow,
-          { opacity: glowAnim, transform: [{ scale: glowAnim.interpolate({ inputRange: [0.5, 1], outputRange: [1.2, 1.5] }) }] }
-        ]}
-      />
-
-      <Animated.View 
-        style={[
-          styles.messageContainer,
-          { opacity, transform: [{ scale }] }
-        ]}
-        pointerEvents="box-none"
-      >
-        <View style={styles.iconContainer}>
-          <Animated.View style={[styles.spinningIcon, { transform: [{ rotate: spin }] }]}>
-            <Target color="#FFD700" size={40} style={styles.starIcon} />
-          </Animated.View>
-          <CheckCircle color={colors.primary} size={60} style={styles.awardIcon} />
-        </View>
-        <Text style={styles.title}>LEVEL UP!</Text>
-        <View style={styles.divider} />
-        <Text style={styles.message}>{message}</Text>
-        <View style={styles.zapContainer}>
-          <Plus color={colors.accent} size={24} style={styles.zapIcon} />
-          <Text style={styles.continueText}>Keep pushing your limits!</Text>
-        </View>
-      </Animated.View>
-
-      {(Platform.OS !== 'web' && ConfettiCannon) ? (
-        <>
-          <ConfettiCannon
-            ref={confettiRef}
-            count={220}
-            origin={{ x: screenWidth / 2, y: 0 }}
-            autoStart={false}
-            fadeOut
-            explosionSpeed={350}
-            fallSpeed={3000}
-            colors={['#0066FF', '#3385FF', '#FFFFFF', '#FFD700', '#FF6B6B', '#4CAF50']}
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onAnimationEnd}>
+      <View style={styles.modalRoot}>
+        <View style={styles.container} testID="level-up-effect">
+          <Animated.View
+            style={[
+              styles.backgroundGlow,
+              { opacity: glowAnim, transform: [{ scale: glowAnim.interpolate({ inputRange: [0.5, 1], outputRange: [1.2, 1.5] }) }] }
+            ]}
           />
-        </>
-      ) : (
-        <View style={StyleSheet.absoluteFill} pointerEvents="none">
-          {emojiBursts.map((cfg, i) => {
-            const vals = emojiAnimVals[i];
-            const rotate = vals.rotate.interpolate({ inputRange: [-180, 180], outputRange: ['-180deg', '180deg'] });
-            return (
-              <Animated.Text
-                key={cfg.key}
-                style={{
-                  position: 'absolute',
-                  left: cfg.left,
-                  top: cfg.startY,
-                  fontSize: cfg.size,
-                  transform: [{ translateY: vals.translateY }, { rotate }],
-                  opacity: vals.opacity,
-                }}
-              >
-                {cfg.char}
-              </Animated.Text>
-            );
-          })}
+
+          <Animated.View
+            style={[
+              styles.messageContainer,
+              { opacity, transform: [{ scale }] }
+            ]}
+            pointerEvents="box-none"
+          >
+            <View style={styles.iconContainer}>
+              <Animated.View style={[styles.spinningIcon, { transform: [{ rotate: spin }] }]}>
+                <Target color="#FFD700" size={40} style={styles.starIcon} />
+              </Animated.View>
+              <CheckCircle color={colors.primary} size={60} style={styles.awardIcon} />
+            </View>
+            <Text style={styles.title}>LEVEL UP!</Text>
+            <View style={styles.divider} />
+            <Text style={styles.message}>{message}</Text>
+            <View style={styles.zapContainer}>
+              <Plus color={colors.accent} size={24} style={styles.zapIcon} />
+              <Text style={styles.continueText}>Keep pushing your limits!</Text>
+            </View>
+          </Animated.View>
+
+          {(Platform.OS !== 'web' && ConfettiCannon) ? (
+            <>
+              <ConfettiCannon
+                ref={confettiRef}
+                count={220}
+                origin={{ x: screenWidth / 2, y: 0 }}
+                autoStart={false}
+                fadeOut
+                explosionSpeed={350}
+                fallSpeed={3000}
+                colors={['#0066FF', '#3385FF', '#FFFFFF', '#FFD700', '#FF6B6B', '#4CAF50']}
+              />
+            </>
+          ) : (
+            <View style={StyleSheet.absoluteFill} pointerEvents="none">
+              {emojiBursts.map((cfg, i) => {
+                const vals = emojiAnimVals[i];
+                const rotate = vals.rotate.interpolate({ inputRange: [-180, 180], outputRange: ['-180deg', '180deg'] });
+                return (
+                  <Animated.Text
+                    key={cfg.key}
+                    style={{
+                      position: 'absolute',
+                      left: cfg.left,
+                      top: cfg.startY,
+                      fontSize: cfg.size,
+                      transform: [{ translateY: vals.translateY }, { rotate }],
+                      opacity: vals.opacity,
+                    }}
+                  >
+                    {cfg.char}
+                  </Animated.Text>
+                );
+              })}
+            </View>
+          )}
         </View>
-      )}
-    </View>
+      </View>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  modalRoot: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   container: {
     ...StyleSheet.absoluteFillObject,
     width: '100%',

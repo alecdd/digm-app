@@ -1,10 +1,22 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react';
 import { StyleSheet, View, Text, Animated, Platform, Dimensions } from 'react-native';
-import ConfettiCannon from 'react-native-confetti-cannon';
 import colors from '@/constants/colors';
-import { Award, Star, Zap } from 'lucide-react-native';
+import { CheckCircle, Target, Plus } from '@/lib/icons';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+
+let ConfettiCannon: any = null;
+if (Platform.OS !== 'web') {
+  try {
+    const mod = require('react-native-confetti-cannon');
+    ConfettiCannon = mod.default || mod;
+    console.log('✅ LevelUpEffect: ConfettiCannon loaded');
+  } catch (e) {
+    console.warn('❌ LevelUpEffect: ConfettiCannon unavailable in Expo Go. Falling back to emoji particles.');
+  }
+} else {
+  console.log('🌐 LevelUpEffect: Web detected - using emoji particles');
+}
 
 interface LevelUpEffectProps {
   visible: boolean;
@@ -21,133 +33,125 @@ export default function LevelUpEffect({
   const scale = useRef(new Animated.Value(0.8)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
-  const confettiRef = useRef<ConfettiCannon>(null);
+  const confettiRef = useRef<any>(null);
+
+  const emojiBursts = useMemo(() => {
+    const pool = ['🎉', '✨', '🏆', '🌟', '💥', '🔥', '💫'];
+    return new Array(24).fill(null).map((_, i) => ({
+      key: `emoji-${i}`,
+      char: pool[i % pool.length],
+      left: Math.random() * (screenWidth - 40) + 20,
+      delay: Math.random() * 400,
+      duration: 1800 + Math.random() * 1200,
+      startY: -30 - Math.random() * 80,
+      endY: screenHeight + 60,
+      rotate: (Math.random() * 2 - 1) * 120,
+      size: 18 + Math.random() * 16,
+    }));
+  }, []);
+
+  const emojiAnimVals = useRef(
+    emojiBursts.map(() => ({
+      translateY: new Animated.Value(0),
+      rotate: new Animated.Value(0),
+      opacity: new Animated.Value(0),
+    }))
+  ).current;
 
   useEffect(() => {
+    console.log('🎉 LevelUpEffect visible:', visible);
     if (visible) {
-      // Reset animation values
       opacity.setValue(0);
       scale.setValue(0.8);
       rotateAnim.setValue(0);
       glowAnim.setValue(0);
-      
-      // Start animations
+
       Animated.parallel([
-        Animated.timing(opacity, {
-          toValue: 1,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-        Animated.spring(scale, {
-          toValue: 1,
-          friction: 8,
-          tension: 40,
-          useNativeDriver: true,
-        }),
+        Animated.timing(opacity, { toValue: 1, duration: 600, useNativeDriver: true }),
+        Animated.spring(scale, { toValue: 1, friction: 8, tension: 40, useNativeDriver: true }),
         Animated.loop(
           Animated.sequence([
-            Animated.timing(glowAnim, {
-              toValue: 1,
-              duration: 1500,
-              useNativeDriver: true,
-            }),
-            Animated.timing(glowAnim, {
-              toValue: 0.5,
-              duration: 1500,
-              useNativeDriver: true,
-            })
+            Animated.timing(glowAnim, { toValue: 1, duration: 1500, useNativeDriver: true }),
+            Animated.timing(glowAnim, { toValue: 0.5, duration: 1500, useNativeDriver: true }),
           ])
         ),
-        Animated.loop(
-          Animated.timing(rotateAnim, {
-            toValue: 1,
-            duration: 10000,
-            useNativeDriver: true,
-          })
-        )
+        Animated.loop(Animated.timing(rotateAnim, { toValue: 1, duration: 10000, useNativeDriver: true })),
       ]).start();
-      
-      // Trigger confetti
-      if (confettiRef.current && Platform.OS !== 'web') {
-        confettiRef.current.start();
-        
-        // Fire additional rounds of confetti for more impact
-        setTimeout(() => confettiRef.current?.start(), 800);
-        setTimeout(() => confettiRef.current?.start(), 1600);
+
+      if (Platform.OS !== 'web' && ConfettiCannon && confettiRef.current) {
+        confettiRef.current.start?.();
+        setTimeout(() => confettiRef.current?.start?.(), 800);
+        setTimeout(() => confettiRef.current?.start?.(), 1600);
+      } else {
+        emojiAnimVals.forEach((vals, i) => {
+          vals.translateY.setValue(0);
+          vals.rotate.setValue(0);
+          vals.opacity.setValue(0);
+          const cfg = emojiBursts[i];
+          Animated.sequence([
+            Animated.delay(cfg.delay),
+            Animated.parallel([
+              Animated.timing(vals.opacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+              Animated.timing(vals.translateY, { toValue: cfg.endY - cfg.startY, duration: cfg.duration, useNativeDriver: true }),
+              Animated.timing(vals.rotate, { toValue: cfg.rotate, duration: cfg.duration, useNativeDriver: true }),
+            ]),
+            Animated.timing(vals.opacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+          ]).start();
+        });
       }
-      
-      // Auto hide after 5 seconds
+
       const timer = setTimeout(() => {
         Animated.parallel([
-          Animated.timing(opacity, {
-            toValue: 0,
-            duration: 800,
-            useNativeDriver: true,
-          }),
-          Animated.timing(scale, {
-            toValue: 0.8,
-            duration: 500,
-            useNativeDriver: true,
-          }),
+          Animated.timing(opacity, { toValue: 0, duration: 800, useNativeDriver: true }),
+          Animated.timing(scale, { toValue: 0.8, duration: 500, useNativeDriver: true }),
         ]).start(() => {
           onAnimationEnd?.();
         });
       }, 5000);
-      
       return () => clearTimeout(timer);
     }
-  }, [visible, opacity, scale, rotateAnim, glowAnim, onAnimationEnd]);
+  }, [visible, opacity, scale, rotateAnim, glowAnim, onAnimationEnd, emojiAnimVals, emojiBursts]);
 
   if (!visible) return null;
-  
-  const spin = rotateAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg']
-  });
+
+  const spin = rotateAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
 
   return (
-    <View style={[styles.container, { position: 'absolute', width: '100%', height: '100%', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10000 }]} testID="level-up-effect">
+    <View style={styles.container} testID="level-up-effect">
       <Animated.View 
         style={[
           styles.backgroundGlow,
-          {
-            opacity: glowAnim,
-            transform: [{ scale: glowAnim.interpolate({ inputRange: [0.5, 1], outputRange: [1.2, 1.5] }) }]
-          }
+          { opacity: glowAnim, transform: [{ scale: glowAnim.interpolate({ inputRange: [0.5, 1], outputRange: [1.2, 1.5] }) }] }
         ]}
       />
-      
+
       <Animated.View 
         style={[
           styles.messageContainer,
-          {
-            opacity,
-            transform: [{ scale }]
-          }
+          { opacity, transform: [{ scale }] }
         ]}
+        pointerEvents="box-none"
       >
         <View style={styles.iconContainer}>
           <Animated.View style={[styles.spinningIcon, { transform: [{ rotate: spin }] }]}>
-            <Star color="#FFD700" size={40} fill="#FFD700" style={styles.starIcon} />
+            <Target color="#FFD700" size={40} style={styles.starIcon} />
           </Animated.View>
-          <Award color={colors.primary} size={60} fill={colors.primary} style={styles.awardIcon} />
+          <CheckCircle color={colors.primary} size={60} style={styles.awardIcon} />
         </View>
-        
         <Text style={styles.title}>LEVEL UP!</Text>
         <View style={styles.divider} />
         <Text style={styles.message}>{message}</Text>
-        
         <View style={styles.zapContainer}>
-          <Zap color={colors.accent} size={24} fill={colors.accent} style={styles.zapIcon} />
+          <Plus color={colors.accent} size={24} style={styles.zapIcon} />
           <Text style={styles.continueText}>Keep pushing your limits!</Text>
         </View>
       </Animated.View>
-      
-      {Platform.OS !== 'web' && (
+
+      {(Platform.OS !== 'web' && ConfettiCannon) ? (
         <>
           <ConfettiCannon
             ref={confettiRef}
-            count={200}
+            count={220}
             origin={{ x: screenWidth / 2, y: 0 }}
             autoStart={false}
             fadeOut
@@ -155,25 +159,29 @@ export default function LevelUpEffect({
             fallSpeed={3000}
             colors={['#0066FF', '#3385FF', '#FFFFFF', '#FFD700', '#FF6B6B', '#4CAF50']}
           />
-          <ConfettiCannon
-            count={150}
-            origin={{ x: 0, y: screenHeight / 3 }}
-            autoStart={visible}
-            fadeOut
-            explosionSpeed={300}
-            fallSpeed={2500}
-            colors={['#0066FF', '#3385FF', '#FFFFFF', '#FFD700', '#FF6B6B', '#4CAF50']}
-          />
-          <ConfettiCannon
-            count={150}
-            origin={{ x: screenWidth, y: screenHeight / 3 }}
-            autoStart={visible}
-            fadeOut
-            explosionSpeed={300}
-            fallSpeed={2500}
-            colors={['#0066FF', '#3385FF', '#FFFFFF', '#FFD700', '#FF6B6B', '#4CAF50']}
-          />
         </>
+      ) : (
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+          {emojiBursts.map((cfg, i) => {
+            const vals = emojiAnimVals[i];
+            const rotate = vals.rotate.interpolate({ inputRange: [-180, 180], outputRange: ['-180deg', '180deg'] });
+            return (
+              <Animated.Text
+                key={cfg.key}
+                style={{
+                  position: 'absolute',
+                  left: cfg.left,
+                  top: cfg.startY,
+                  fontSize: cfg.size,
+                  transform: [{ translateY: vals.translateY }, { rotate }],
+                  opacity: vals.opacity,
+                }}
+              >
+                {cfg.char}
+              </Animated.Text>
+            );
+          })}
+        </View>
       )}
     </View>
   );
@@ -181,16 +189,12 @@ export default function LevelUpEffect({
 
 const styles = StyleSheet.create({
   container: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    ...StyleSheet.absoluteFillObject,
     width: '100%',
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 10000, // Higher than GoalCompletionEffect to ensure it's on top
+    zIndex: 10000,
     backgroundColor: 'rgba(0,0,0,0.85)',
     elevation: 1000,
   },

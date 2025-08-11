@@ -1,17 +1,17 @@
+// app/(tabs)/coach/index.tsx
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { 
-  FlatList, 
-  KeyboardAvoidingView, 
-  Platform, 
-  ScrollView, 
-  StyleSheet, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  View 
+import {
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { Send } from "lucide-react-native";
-import { Stack } from "expo-router";
 import colors from "@/constants/colors";
 import { useCoachStore } from "@/hooks/useCoachStore";
 import { useDigmStore } from "@/hooks/useDigmStore";
@@ -20,10 +20,17 @@ import SuggestionChip from "@/components/SuggestionChip";
 import GoalCompletionEffect from "@/components/GoalCompletionEffect";
 
 export default function CoachScreen() {
-  const { messages, isLoading, sendMessage, getSuggestions, loadMessages } = useCoachStore();
+  // Get the store once, then use its fields
+  const store = useCoachStore();
   const { completedGoal, clearCompletedGoal } = useDigmStore();
+
   const [inputText, setInputText] = useState("");
   const flatListRef = useRef<FlatList>(null);
+
+  // If provider isn't mounted for some reason, show nothing (or a fallback)
+  if (!store) return null;
+
+  const { messages, isLoading, sendMessage, getSuggestions, loadMessages } = store;
 
   useEffect(() => {
     loadMessages();
@@ -31,7 +38,7 @@ export default function CoachScreen() {
 
   const handleSend = useCallback(() => {
     if (inputText.trim() && !isLoading) {
-      sendMessage(inputText);
+      sendMessage(inputText.trim());
       setInputText("");
     }
   }, [inputText, isLoading, sendMessage]);
@@ -43,9 +50,10 @@ export default function CoachScreen() {
   // Scroll to bottom when messages change
   useEffect(() => {
     if (flatListRef.current && messages.length > 0) {
-      setTimeout(() => {
+      const t = setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
+      return () => clearTimeout(t);
     }
   }, [messages]);
 
@@ -55,8 +63,6 @@ export default function CoachScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
     >
-      <Stack.Screen options={{ headerShown: false }} />
-      
       <FlatList
         ref={flatListRef}
         style={styles.messageList}
@@ -71,23 +77,23 @@ export default function CoachScreen() {
         )}
         contentContainerStyle={styles.messageListContent}
       />
-      
+
       <View style={styles.suggestionsContainer}>
-        <ScrollView 
-          horizontal 
+        <ScrollView
+          horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.suggestionsScroll}
         >
-          {getSuggestions().map((suggestion, index) => (
+          {getSuggestions().map((suggestion, idx) => (
             <SuggestionChip
-              key={index}
+              key={`${suggestion}-${idx}`}
               text={suggestion}
               onPress={() => handleSuggestionPress(suggestion)}
             />
           ))}
         </ScrollView>
       </View>
-      
+
       <View style={styles.inputContainer}>
         <TextInput
           style={styles.input}
@@ -101,24 +107,24 @@ export default function CoachScreen() {
           onSubmitEditing={handleSend}
           editable={!isLoading}
         />
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[
             styles.sendButton,
-            (!inputText.trim() || isLoading) && styles.sendButtonDisabled
-          ]} 
+            (!inputText.trim() || isLoading) && styles.sendButtonDisabled,
+          ]}
           onPress={handleSend}
           disabled={!inputText.trim() || isLoading}
         >
           <Send color={colors.text} size={20} />
         </TouchableOpacity>
       </View>
-      
+
       {isLoading && (
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Coach is typing...</Text>
         </View>
       )}
-      
+
       {/* Goal Completion Effect */}
       {completedGoal && (
         <GoalCompletionEffect
@@ -132,23 +138,11 @@ export default function CoachScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  messageList: {
-    flex: 1,
-  },
-  messageListContent: {
-    padding: 16,
-  },
-  suggestionsContainer: {
-    paddingHorizontal: 16,
-    marginBottom: 8,
-  },
-  suggestionsScroll: {
-    paddingVertical: 8,
-  },
+  container: { flex: 1, backgroundColor: colors.background },
+  messageList: { flex: 1 },
+  messageListContent: { padding: 16 },
+  suggestionsContainer: { paddingHorizontal: 16, marginBottom: 8 },
+  suggestionsScroll: { paddingVertical: 8 },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -176,9 +170,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginLeft: 8,
   },
-  sendButtonDisabled: {
-    backgroundColor: colors.inactive,
-  },
+  sendButtonDisabled: { backgroundColor: colors.inactive },
   loadingContainer: {
     position: "absolute",
     bottom: 70,

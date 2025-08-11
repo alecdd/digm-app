@@ -1,504 +1,582 @@
 // hooks/useDigmStore.ts
-
-import AsyncStorage from "@react-native-async-storage/async-storage";
+// hooks/useDigmStore.ts
 import createContextHook from "@nkzw/create-context-hook";
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+
 import { Goal, JournalEntry, Task, TaskStatus, UserProfile } from "@/types";
 import { getRandomQuote } from "@/constants/quotes";
 import { getLevelInfo } from "@/constants/colors";
-import { mockGoals, mockJournalEntries, mockTasks, mockUserProfile } from "@/mocks/data";
 
-const STORAGE_KEYS = {
-  USER_PROFILE: "digm_user_profile",
-  GOALS: "digm_goals",
-  TASKS: "digm_tasks",
-  JOURNAL_ENTRIES: "digm_journal_entries",
-  PINNED_GOALS: "digm_pinned_goals",
-};
+import { supabase } from "@/lib/supabase";
+import { ensureProfile } from "@/lib/supa-user";
+
+
+// ---- Helpers --------------------------------------------------
+
+function calcGoalProgress(tasksForGoal: Task[]) {
+  const total = tasksForGoal.length || 1;
+  const done = tasksForGoal.filter(t => t.status === "done").length;
+  return Math.round((done / total) * 100);
+}
+
+function toProfile(u: any): UserProfile {
+  return {
+    vision: u.vision ?? "",
+    xp: u.xp ?? 0,
+    level: u.level ?? 1,
+    streak: u.streak ?? 0,
+    lastActive: u.last_active ?? new Date().toISOString(),
+  };
+}
+
+// ---- Store ----------------------------------------------------
 
 export const [DigmProvider, useDigmStore] = createContextHook(() => {
-  const [userProfile, setUserProfile] = useState<UserProfile>(mockUserProfile);
-  const [goals, setGoals] = useState<Goal[]>(mockGoals);
-  const [tasks, setTasks] = useState<Task[]>(mockTasks);
-  const [journalEntries, setJournalEntries] = useState<JournalEntry[]>(mockJournalEntries);
+  // Core state
+  const [userId, setUserId] = useState<string | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile>({
+    vision: "",
+    xp: 0,
+    level: 1,
+    streak: 0,
+    lastActive: new Date().toISOString(),
+  });
+
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
+  const [pinnedGoalIds, setPinnedGoalIds] = useState<string[]>([]);
   const [quote, setQuote] = useState(getRandomQuote());
   const [completedGoal, setCompletedGoal] = useState<Goal | null>(null);
-  const [pinnedGoalIds, setPinnedGoalIds] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const calculateGoalProgress = useCallback((goalId: string) => {
-    const goalTasks = tasks.filter(t => t.goalId === goalId);
-    const completedTasks = goalTasks.filter(t => t.status === "done").length;
-    const totalTasks = goalTasks.length || 1; // Ensure at least 1 to avoid division by zero
-    return totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-  }, [tasks]);
+  // ---- Initial load (auth + data) -----------------------------
 
-  // Recalculate progress for all goals whenever tasks change
   useEffect(() => {
-    setGoals(currentGoals => {
-      return currentGoals.map(goal => {
-        const calculatedProgress = calculateGoalProgress(goal.id);
-        return { ...goal, progress: calculatedProgress };
-      });
-    });
+    (async () => {
+      setLoading(true);
+      try {
+        const user = await ensureProfile(); // signs in (dev) and guarantees a profile row
+        setUserId(user.id);
+
+        // profiles
+        {
+          const { data, error } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", user.id)
+            .maybeSingle();
+          if (error) throw error;
+          if (data) setUserProfile(toProfile(data));
+        }
+
+        // pinned goals
+        {
+          const { data, error } = await supabase
+            .from("pinned_goals")
+            .select("goal_id")
+            .eq("user_id", user.id);
+          if (error) throw error;
+          setPinnedGoalIds((data ?? []).map(r => r.goal_id as string));
+        }
+
+        // goals
+        {
+          const { data, error } = await supabase
+            .from("goals")
+            .select("*")
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: true });
+          if (error) throw error;
+          setGoals(
+            (data ?? []).map((g: any) => ({
+              id: g.id,
+              title: g.title,
+              dueDate: g.due_date,
+              progress: g.progress ?? 0,
+              timeframe: g.timeframe,
+              tasks: [], // filled below after tasks load
+              specific: g.specific ?? undefined,
+              measurable: g.measurable ?? undefined,
+              achievable: g.achievable ?? undefined,
+              relevant: g.relevant ?? undefined,
+              timeBound: g.time_bound ?? undefined,
+            }))
+          );
+        }
+
+        // tasks
+        {
+          const { data, error } = await supabase
+            .from("tasks")
+            .select("*")
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: true });
+          if (error) throw error;
+
+          const mapped: Task[] = (data ?? []).map((t: any) => ({
+            id: t.id,
+            title: t.title,
+            status: t.status,
+            isHighImpact: !!t.is_high_impact,
+            isCompleted: t.status === "done",
+            goalId: t.goal_id ?? undefined,
+            xpReward: t.xp_reward ?? (t.is_high_impact ? 15 : 5),
+            createdAt: t.created_at,
+            completedAt: t.completed_at ?? undefined,
+          }));
+
+          setTasks(mapped);
+
+          // backfill goal -> tasks relation in state
+          setGoals(g =>
+            g.map(goal => ({
+              ...goal,
+              tasks: mapped.filter(t => t.goalId === goal.id).map(t => t.id),
+              progress: calcGoalProgress(mapped.filter(t => t.goalId === goal.id)),
+            }))
+          );
+        }
+
+        // journal entries
+        {
+          const { data, error } = await supabase
+            .from("journal_entries")
+            .select("*")
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: false });
+          if (error) throw error;
+
+          setJournalEntries(
+            (data ?? []).map((j: any) => ({
+              id: j.id,
+              date: j.created_at,
+              content: j.content ?? "",
+              accomplishments: j.accomplishments ?? "",
+              blockers: j.blockers ?? "",
+              gratitude: j.gratitude ?? "",
+              valueServed: j.value_served ?? "",
+              xpEarned: j.xp_earned ?? 10,
+            }))
+          );
+        }
+      } catch (e) {
+        console.error("Initial load failed:", e);
+      } finally {
+        setLoading(false);
+        setQuote(getRandomQuote());
+      }
+    })();
+  }, []);
+
+  // ---- Progress helpers ---------------------------------------
+
+  const calculateGoalProgress = useCallback(
+    (goalId: string) => calcGoalProgress(tasks.filter(t => t.goalId === goalId)),
+    [tasks]
+  );
+
+  // keep goal.progress in sync any time tasks change
+  useEffect(() => {
+    setGoals(gs =>
+      gs.map(g => ({ ...g, progress: calculateGoalProgress(g.id) }))
+    );
   }, [tasks, calculateGoalProgress]);
 
-  const loadData = useCallback(async () => {
-    try {
-      const [storedUserProfile, storedGoals, storedTasks, storedJournalEntries, storedPinned] =
-        await Promise.all([
-          AsyncStorage.getItem(STORAGE_KEYS.USER_PROFILE),
-          AsyncStorage.getItem(STORAGE_KEYS.GOALS),
-          AsyncStorage.getItem(STORAGE_KEYS.TASKS),
-          AsyncStorage.getItem(STORAGE_KEYS.JOURNAL_ENTRIES),
-          AsyncStorage.getItem(STORAGE_KEYS.PINNED_GOALS),
-        ]);
+  // ---- Profile helpers (XP/Level, vision/streak) ---------------
 
-      console.log('Loading data from AsyncStorage:');
-      console.log('- Pinned goals:', storedPinned);
-      
-      if (storedUserProfile) setUserProfile(JSON.parse(storedUserProfile));
-      if (storedGoals) setGoals(JSON.parse(storedGoals));
-      if (storedTasks) setTasks(JSON.parse(storedTasks));
-      if (storedJournalEntries) setJournalEntries(JSON.parse(storedJournalEntries));
-      
-      if (storedPinned) {
-        const parsedPinned = JSON.parse(storedPinned);
-        console.log('- Parsed pinned goals:', parsedPinned);
-        setPinnedGoalIds(parsedPinned);
+  const bumpXP = useCallback(
+    async (delta: number) => {
+      setUserProfile(prev => {
+        const xp = prev.xp + delta;
+        const levelInfo = getLevelInfo(xp);
+        return { ...prev, xp, level: levelInfo.level };
+      });
+      if (!userId) return;
+      const newXP = userProfile.xp + delta;
+      const { error } = await supabase
+        .from("profiles")
+        .update({ xp: newXP, level: getLevelInfo(newXP).level })
+        .eq("id", userId);
+      if (error) console.error("Failed to persist XP:", error);
+    },
+    [userId, userProfile.xp]
+  );
+
+  const updateVision = useCallback(
+    async (vision: string) => {
+      setUserProfile(up => ({ ...up, vision }));
+      if (!userId) return;
+      const { error } = await supabase
+        .from("profiles")
+        .update({ vision })
+        .eq("id", userId);
+      if (error) console.error("Failed to update vision:", error);
+    },
+    [userId]
+  );
+
+  // ---- Tasks ---------------------------------------------------
+
+  const addTask = useCallback(
+    async (t: Omit<Task, "id" | "createdAt">) => {
+      if (!userId) return null;
+      const payload = {
+        user_id: userId,
+        title: t.title,
+        status: t.status,
+        is_high_impact: t.isHighImpact,
+        goal_id: t.goalId ?? null,
+        xp_reward: t.xpReward ?? (t.isHighImpact ? 15 : 5),
+      };
+      const { data, error } = await supabase
+        .from("tasks")
+        .insert(payload)
+        .select("*")
+        .maybeSingle();
+      if (error) {
+        console.error("addTask failed:", error);
+        return null;
       }
-    } catch (err) {
-      console.error("Error loading data:", err);
-    }
-  }, []);
+      const task: Task = {
+        id: data.id,
+        title: data.title,
+        status: data.status,
+        isHighImpact: !!data.is_high_impact,
+        isCompleted: data.status === "done",
+        goalId: data.goal_id ?? undefined,
+        xpReward: data.xp_reward ?? (data.is_high_impact ? 15 : 5),
+        createdAt: data.created_at,
+        completedAt: data.completed_at ?? undefined,
+      };
+      setTasks(ts => [...ts, task]);
+      // ensure goal linkage in state
+      if (task.goalId) {
+        setGoals(gs =>
+          gs.map(g =>
+            g.id === task.goalId
+              ? { ...g, tasks: [...g.tasks, task.id], progress: calculateGoalProgress(g.id) }
+              : g
+          )
+        );
+      }
+      return task;
+    },
+    [userId, calculateGoalProgress]
+  );
 
-  const saveData = useCallback(async () => {
-    try {
-      await Promise.all([
-        AsyncStorage.setItem(STORAGE_KEYS.USER_PROFILE, JSON.stringify(userProfile)),
-        AsyncStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(goals)),
-        AsyncStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(tasks)),
-        AsyncStorage.setItem(STORAGE_KEYS.JOURNAL_ENTRIES, JSON.stringify(journalEntries)),
-        AsyncStorage.setItem(STORAGE_KEYS.PINNED_GOALS, JSON.stringify(pinnedGoalIds)),
-      ]);
-    } catch (err) {
-      console.error("Error saving data:", err);
-    }
-  }, [userProfile, goals, tasks, journalEntries, pinnedGoalIds]);
+  const updateTask = useCallback(
+    async (updated: Task) => {
+      // prevent changing completed tasks back
+      const prev = tasks.find(t => t.id === updated.id);
+      // compute once
+      const wasDoneBefore = !!(prev?.isCompleted || prev?.status === 'done');
+      // guard
+      if (wasDoneBefore) {
+        console.log('Task already completed; ignoring changes.');
+        return;
+      }
 
-  useEffect(() => {
-    loadData();
-    setQuote(getRandomQuote());
-  }, [loadData]);
+      const isNowDone = updated.status === "done";
+      const patch: any = {
+        title: updated.title,
+        status: updated.status,
+        is_high_impact: updated.isHighImpact,
+        goal_id: updated.goalId ?? null,
+      };
+      if (isNowDone) patch.completed_at = new Date().toISOString();
 
-  // Sync level with XP on profile changes
-  useEffect(() => {
-    const correctLevelInfo = getLevelInfo(userProfile.xp);
-    if (userProfile.level !== correctLevelInfo.level) {
-      console.log(`Syncing level: XP ${userProfile.xp} should be level ${correctLevelInfo.level}, but was ${userProfile.level}`);
-      setUserProfile(up => ({ ...up, level: correctLevelInfo.level }));
-    }
-  }, [userProfile.xp]);
+      const { error } = await supabase.from("tasks").update(patch).eq("id", updated.id);
+      if (error) {
+        console.error("updateTask failed:", error);
+        return;
+      }
 
-  useEffect(() => {
-    saveData();
-  }, [userProfile, goals, tasks, journalEntries, pinnedGoalIds]);
-
-  useEffect(() => {
-    const today = new Date().toISOString().split("T")[0];
-    const last = userProfile.lastActive.split("T")[0];
-
-    if (today !== last) {
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayStr = yesterday.toISOString().split("T")[0];
-
-      const newProfile = {
-        ...userProfile,
-        lastActive: new Date().toISOString(),
-        streak: last === yesterdayStr ? userProfile.streak + 1 : 1,
-        xp: last === yesterdayStr ? userProfile.xp + 3 : userProfile.xp,
+      const taskToUpdate: Task = {
+        ...updated,
+        isCompleted: isNowDone,
+        completedAt: isNowDone ? (updated.completedAt ?? new Date().toISOString()) : undefined,
       };
 
-      setUserProfile(newProfile);
-    }
-  }, [userProfile]);
+      // local update
+      setTasks(ts => ts.map(t => (t.id === taskToUpdate.id ? taskToUpdate : t)));
 
-  const updateTask = useCallback((updated: Task) => {
-    const prev = tasks.find(t => t.id === updated.id);
-
-    // If task is already completed, don't allow changing it back
-    if (prev?.isCompleted || prev?.status === "done") {
-      console.log('Task is already completed, cannot change state');
-      return;
-    }
-
-    // Ensure isCompleted flag matches status
-    const taskToUpdate = {
-      ...updated,
-      isCompleted: updated.status === "done",
-      completedAt: updated.status === "done" ? (updated.completedAt || new Date().toISOString()) : undefined
-    };
-
-    console.log('Updating task:', taskToUpdate.title, 'Status:', taskToUpdate.status, 'IsCompleted:', taskToUpdate.isCompleted);
-
-    // Award XP for task completion
-    if (updated.status === "done") {
-      console.log('✅ Task completed:', updated.title);
-      const xpReward = updated.isHighImpact ? 15 : 5;
-      
-      setUserProfile(up => {
-        const xp = up.xp + xpReward;
-        const levelInfo = getLevelInfo(xp);
-        console.log(`Awarded ${xpReward} XP for task completion. Total XP: ${xp}, Level: ${levelInfo.level}`);
-        return { ...up, xp, level: levelInfo.level };
-      });
-    }
-    
-    // Update tasks and check for goal completion
-    setTasks(currentTasks => {
-      const updatedTasks = currentTasks.map(t => t.id === taskToUpdate.id ? taskToUpdate : t);
-      
-      // Check goal completion immediately with the updated tasks
-      const goalId = taskToUpdate.goalId;
-      if (goalId) {
-        const goalTasks = updatedTasks.filter(t => t.goalId === goalId);
-        const completedTasks = goalTasks.filter(t => t.status === "done");
-        const progress = goalTasks.length > 0 ? Math.round((completedTasks.length / goalTasks.length) * 100) : 0;
-        
-        console.log(`🎯 Goal ${goalId} progress: ${completedTasks.length}/${goalTasks.length} = ${progress}%`);
-        
-        // Update goal progress and check for completion
-        setGoals(currentGoals => {
-          return currentGoals.map(goal => {
-            if (goal.id === goalId) {
-              const updatedGoal = { ...goal, progress };
-              
-              // Check if goal is newly completed
-              if (progress === 100 && goal.progress < 100) {
-                console.log('🎉🎉🎉 GOAL COMPLETED:', goal.title);
-                console.log('🎯 Goal progress changed from', goal.progress, 'to', progress);
-                console.log('🎯 Goal tasks:', goalTasks.length, 'Completed tasks:', completedTasks.length);
-                
-                // Award XP for goal completion
-                setUserProfile(up => {
-                  const xp = up.xp + 50; // 50 XP for goal completion
-                  const levelInfo = getLevelInfo(xp);
-                  console.log(`🏆 Awarded 50 XP for goal completion! Total XP: ${xp}, Level: ${levelInfo.level}`);
-                  return { ...up, xp, level: levelInfo.level };
-                });
-                
-                // Unpin the goal if it's pinned
-                if (pinnedGoalIds.includes(goal.id)) {
-                  console.log('📌 Unpinning completed goal:', goal.id);
-                  setPinnedGoalIds(current => current.filter(id => id !== goal.id));
-                }
-                
-                // Set completed goal to trigger animation, but only if not leveling up
-                console.log('🎊 Setting completed goal for animation:', updatedGoal.title);
-                console.log('🎊 completedGoal state will be set to:', updatedGoal);
-                
-                // Check if we're leveling up - if so, don't show goal completion animation
-                const currentXp = userProfile.xp;
-                const levelInfo = getLevelInfo(currentXp);
-                const newLevelInfo = getLevelInfo(currentXp + 50);
-                
-                console.log(`🔄 Level check: Current XP: ${currentXp}, Current level: ${levelInfo.level}`);
-                console.log(`🔄 Level check: After +50 XP: ${currentXp + 50}, New level: ${newLevelInfo.level}`);
-                console.log(`🔄 Will level up? ${levelInfo.level !== newLevelInfo.level ? 'YES' : 'NO'}`);
-                
-                // Always prioritize level up animation over goal completion
-                if (levelInfo.level !== newLevelInfo.level) {
-                  console.log('🎊 Level up detected! Skipping goal completion animation');
-                  // Ensure completed goal is null to prevent any chance of both animations showing
-                  setCompletedGoal(null);
-                } else {
-                  // No level up, show goal completion
-                  setCompletedGoal(updatedGoal);
-                  
-                  // Clear completed goal state after animation (but keep goal in profile)
-                  setTimeout(() => {
-                    console.log('🎊 Clearing completed goal animation state:', goal.title);
-                    setCompletedGoal(null);
-                  }, 5500);
-                }
-              }
-              
-              return updatedGoal;
-            }
-            return goal;
-          });
-        });
+      // XP for completing a task (only if it wasn't already done)
+      if (isNowDone && !wasDoneBefore) {
+        const xpReward = updated.isHighImpact ? 15 : 5;
+        await bumpXP(xpReward);
       }
-      
-      return updatedTasks;
-    });
-  }, [tasks, pinnedGoalIds]);
 
-  const moveTask = useCallback((id: string, status: TaskStatus) => {
-    const t = tasks.find(t => t.id === id);
-    if (!t) return;
-    
-    // If task is already completed, don't allow changing it
-    if (t.isCompleted || t.status === "done") {
-      console.log('Task is already completed, cannot change state');
-      return;
-    }
-    
-    updateTask({ ...t, status, isCompleted: status === "done", completedAt: status === "done" ? new Date().toISOString() : undefined });
-  }, [tasks, updateTask]);
+      // recompute & persist goal progress
+      if (taskToUpdate.goalId) {
+        const goalId = taskToUpdate.goalId;
+        const progress = calculateGoalProgress(goalId);
+        setGoals(gs => gs.map(g => (g.id === goalId ? { ...g, progress } : g)));
+        const { error: gErr } = await supabase
+          .from("goals")
+          .update({ progress })
+          .eq("id", goalId);
+        if (gErr) console.error("Persist goal progress failed:", gErr);
 
-  const addTask = useCallback((t: Omit<Task, "id" | "createdAt">) => {
-    const task: Task = { ...t, id: `task${Date.now()}`, createdAt: new Date().toISOString() };
-    setTasks(ts => [...ts, task]);
-    return task;
-  }, []);
-
-  const deleteTask = useCallback((taskId: string) => {
-    setTasks(ts => ts.filter(t => t.id !== taskId));
-    
-    // Update goal progress if the task was tied to a goal
-    const taskToDelete = tasks.find(t => t.id === taskId);
-    if (taskToDelete?.goalId) {
-      setGoals(gs => gs.map(goal => {
-        if (goal.id === taskToDelete.goalId) {
-          const remainingGoalTasks = tasks.filter(t => t.goalId === goal.id && t.id !== taskId);
-          const completedTasks = remainingGoalTasks.filter(t => t.status === "done");
-          const progress = remainingGoalTasks.length > 0 ? Math.round((completedTasks.length / remainingGoalTasks.length) * 100) : 0;
-          return { ...goal, progress, tasks: goal.tasks.filter(tId => tId !== taskId) };
+        // goal completion reward
+        const goal = goals.find(g => g.id === goalId);
+        if (goal && goal.progress < 100 && progress === 100) {
+          await bumpXP(50);
+          // show completion animation unless level-up happens (same behavior)
+          setCompletedGoal({ ...goal, progress: 100 });
+          setTimeout(() => setCompletedGoal(null), 5500);
         }
-        return goal;
-      }));
-    }
-  }, [tasks]);
-
-  const updateGoal = useCallback((updated: Goal) => {
-    const existing = goals.find(g => g.id === updated.id);
-    
-    // Calculate progress based on task completion ratio
-    const goalTasks = tasks.filter(t => t.goalId === updated.id);
-    const completedTasks = goalTasks.filter(t => t.status === "done");
-    const calculatedProgress = goalTasks.length > 0 
-      ? Math.round((completedTasks.length / goalTasks.length) * 100) 
-      : 0;
-    
-    // Update the goal with calculated progress
-    const updatedWithProgress = {
-      ...updated,
-      progress: calculatedProgress
-    };
-    
-    // Check if goal is newly completed
-    const isCompleted = existing && existing.progress < 100 && calculatedProgress === 100;
-
-    setGoals(gs => gs.map(g => g.id === updated.id ? updatedWithProgress : g));
-    
-    // Ensure all goals have their progress recalculated
-    setTimeout(() => {
-      setGoals(currentGoals => {
-        return currentGoals.map(g => {
-          if (g.id === updated.id) return updatedWithProgress;
-          
-          const gTasks = tasks.filter(t => t.goalId === g.id);
-          const gCompletedTasks = gTasks.filter(t => t.status === "done");
-          const gProgress = gTasks.length > 0 
-            ? Math.round((gCompletedTasks.length / gTasks.length) * 100) 
-            : 0;
-          
-          return { ...g, progress: gProgress };
-        });
-      });
-    }, 100);
-
-    if (isCompleted) {
-      console.log('Goal completed via updateGoal:', updated.title);
-      
-      setUserProfile(up => {
-        const xp = up.xp + 50; // Goal completion reward is 50 XP (25 XP base + 25 XP bonus)
-        const levelInfo = getLevelInfo(xp);
-        return { ...up, xp, level: levelInfo.level };
-      });
-      
-      // Unpin the goal if it's pinned
-      if (pinnedGoalIds.includes(updated.id)) {
-        console.log('Unpinning completed goal:', updated.id);
-        setPinnedGoalIds(current => current.filter(id => id !== updated.id));
       }
-      
-      // Set completed goal to trigger animation, but only if not leveling up
-      const currentXp = userProfile.xp;
-      const levelInfo = getLevelInfo(currentXp);
-      const newLevelInfo = getLevelInfo(currentXp + 50);
-      
-      console.log(`🔄 Level check (updateGoal): Current XP: ${currentXp}, Current level: ${levelInfo.level}`);
-      console.log(`🔄 Level check (updateGoal): After +50 XP: ${currentXp + 50}, New level: ${newLevelInfo.level}`);
-      console.log(`🔄 Will level up? ${levelInfo.level !== newLevelInfo.level ? 'YES' : 'NO'}`);
-      
-      // Always prioritize level up animation over goal completion
-      if (levelInfo.level !== newLevelInfo.level) {
-        console.log('🎊 Level up detected! Skipping goal completion animation');
-        // Ensure completed goal is null to prevent any chance of both animations showing
-        setCompletedGoal(null);
-      } else {
-        // No level up, show goal completion
+    },
+    [tasks, calculateGoalProgress, goals, bumpXP]
+  );
+
+  const moveTask = useCallback(
+    async (id: string, status: TaskStatus) => {
+      const t = tasks.find(x => x.id === id);
+      if (!t) return;
+      if (t.isCompleted || t.status === "done") {
+        console.log("Task already completed; cannot move.");
+        return;
+      }
+      await updateTask({ ...t, status, isCompleted: status === "done", completedAt: status === "done" ? new Date().toISOString() : undefined });
+    },
+    [tasks, updateTask]
+  );
+
+  const deleteTask = useCallback(
+    async (taskId: string) => {
+      const t = tasks.find(x => x.id === taskId);
+      setTasks(ts => ts.filter(x => x.id !== taskId));
+      const { error } = await supabase.from("tasks").delete().eq("id", taskId);
+      if (error) console.error("deleteTask failed:", error);
+
+      if (t?.goalId) {
+        const progress = calculateGoalProgress(t.goalId);
+        setGoals(gs =>
+          gs.map(g => (g.id === t.goalId ? { ...g, tasks: g.tasks.filter(id => id !== taskId), progress } : g))
+        );
+        const { error: gErr } = await supabase.from("goals").update({ progress }).eq("id", t.goalId);
+        if (gErr) console.error("Persist goal progress failed:", gErr);
+      }
+    },
+    [tasks, calculateGoalProgress]
+  );
+
+  // ---- Goals ---------------------------------------------------
+
+  const addGoal = useCallback(
+    async (g: Omit<Goal, "id" | "progress" | "tasks">, initialTasks: Omit<Task, "id" | "createdAt" | "goalId">[] = []) => {
+      if (!userId) return null;
+      const { data, error } = await supabase
+        .from("goals")
+        .insert({
+          user_id: userId,
+          title: g.title,
+          due_date: g.dueDate,
+          timeframe: g.timeframe,
+          specific: g.specific ?? null,
+          measurable: g.measurable ?? null,
+          achievable: g.achievable ?? null,
+          relevant: g.relevant ?? null,
+          time_bound: g.timeBound ?? null,
+          progress: 0,
+        })
+        .select("*")
+        .maybeSingle();
+
+      if (error) {
+        console.error("addGoal failed:", error);
+        return null;
+      }
+
+      const goal: Goal = {
+        id: data.id,
+        title: data.title,
+        dueDate: data.due_date,
+        progress: data.progress ?? 0,
+        timeframe: data.timeframe,
+        tasks: [],
+        specific: data.specific ?? undefined,
+        measurable: data.measurable ?? undefined,
+        achievable: data.achievable ?? undefined,
+        relevant: data.relevant ?? undefined,
+        timeBound: data.time_bound ?? undefined,
+      };
+
+      setGoals(gs => [...gs, goal]);
+
+      // seed a default task if none were passed (keeps your UX)
+      if (initialTasks.length === 0) {
+        initialTasks = [
+          {
+            title: `Complete ${g.title}`,
+            status: "open",
+            isHighImpact: true,
+            isCompleted: false,
+            xpReward: 15,
+          },
+        ];
+      }
+
+      // create tasks for this goal
+      for (const t of initialTasks) {
+        await addTask({ ...t, goalId: goal.id });
+      }
+
+      return goal;
+    },
+    [userId, addTask]
+  );
+
+  const updateGoal = useCallback(
+    async (updated: Goal) => {
+      const progress = calculateGoalProgress(updated.id);
+      const patch = {
+        title: updated.title,
+        due_date: updated.dueDate,
+        timeframe: updated.timeframe,
+        specific: updated.specific ?? null,
+        measurable: updated.measurable ?? null,
+        achievable: updated.achievable ?? null,
+        relevant: updated.relevant ?? null,
+        time_bound: updated.timeBound ?? null,
+        progress,
+      };
+
+      const { error } = await supabase.from("goals").update(patch).eq("id", updated.id);
+      if (error) {
+        console.error("updateGoal failed:", error);
+        return updated;
+      }
+
+      const updatedWithProgress: Goal = { ...updated, progress };
+      setGoals(gs => gs.map(g => (g.id === updated.id ? updatedWithProgress : g)));
+
+      // completion reward (if transitioned to 100)
+      const prev = goals.find(g => g.id === updated.id);
+      if (prev && prev.progress < 100 && progress === 100) {
+        await bumpXP(50);
         setCompletedGoal(updatedWithProgress);
-        
-        // Clear completed goal state after animation (but keep goal in profile)
-        setTimeout(() => {
-          setCompletedGoal(null);
-        }, 5500);
+        setTimeout(() => setCompletedGoal(null), 5500);
       }
-    }
-    
-    return updatedWithProgress;
-  }, [goals, tasks]);
 
-  const addGoal = useCallback((g: Omit<Goal, "id" | "progress" | "tasks">, initialTasks: Omit<Task, "id" | "createdAt" | "goalId">[] = []) => {
-    const id = `goal${Date.now()}`;
-    const goal: Goal = { ...g, id, progress: 0, tasks: [] };
-    setGoals(gs => [...gs, goal]);
+      return updatedWithProgress;
+    },
+    [goals, calculateGoalProgress, bumpXP]
+  );
 
-    // If no tasks provided, create a default task with the goal name
-    if (initialTasks.length === 0) {
-      initialTasks = [{
-        title: `Complete ${g.title}`,
-        status: 'open',
-        isHighImpact: true,
-        isCompleted: false,
-        xpReward: 15 // High impact tasks are worth 15 XP
-      }];
-      console.log('Created default task for goal:', g.title);
-    }
+  const deleteGoal = useCallback(
+    async (id: string) => {
+      // optimistic
+      setGoals(gs => gs.filter(g => g.id !== id));
+      setTasks(ts => ts.filter(t => t.goalId !== id));
+      setPinnedGoalIds(ids => ids.filter(gid => gid !== id));
 
-    // Generate unique IDs for each task
-    const newTasks = initialTasks.map(t => {
-      const taskId = `task${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      console.log(`Created task: ${t.title} with ID: ${taskId} for goal: ${id}`);
-      return {
-        ...t,
-        id: taskId,
-        createdAt: new Date().toISOString(),
-        goalId: id,
+      const { error } = await supabase.from("goals").delete().eq("id", id);
+      if (error) console.error("deleteGoal failed:", error);
+      // tasks are ON DELETE CASCADE in your schema, so they’ll follow
+      await supabase.from("pinned_goals").delete().eq("goal_id", id);
+    },
+    []
+  );
+
+  const togglePinGoal = useCallback(
+    async (id: string) => {
+      if (!userId) return;
+      const isPinned = pinnedGoalIds.includes(id);
+      if (isPinned) {
+        setPinnedGoalIds(ids => ids.filter(gid => gid !== id));
+        const { error } = await supabase.from("pinned_goals").delete().eq("user_id", userId).eq("goal_id", id);
+        if (error) console.error("unpin failed:", error);
+      } else {
+        // last 3 pins
+        const next = [...pinnedGoalIds, id].slice(-3);
+        setPinnedGoalIds(next);
+        const { error } = await supabase
+          .from("pinned_goals")
+          .insert({ user_id: userId, goal_id: id });
+        if (error) console.error("pin failed:", error);
+      }
+    },
+    [userId, pinnedGoalIds]
+  );
+
+  // ---- Journal -------------------------------------------------
+
+  const addJournalEntry = useCallback(
+    async (e: Omit<JournalEntry, "id" | "xpEarned">) => {
+      if (!userId) return null;
+      const payload = {
+        user_id: userId,
+        content: e.content,
+        accomplishments: e.accomplishments,
+        blockers: e.blockers,
+        gratitude: e.gratitude,
+        value_served: e.valueServed,
+        xp_earned: 10,
       };
-    });
-
-    setTasks(ts => [...ts, ...newTasks]);
-    
-    // Update the goal with the task IDs and set progress to 0 initially
-    const taskIds = newTasks.map(t => t.id);
-    console.log(`Updating goal ${id} with task IDs:`, taskIds);
-    
-    setGoals(gs => gs.map(g => {
-      if (g.id === id) {
-        return { 
-          ...g, 
-          tasks: taskIds,
-          progress: 0 // Explicitly set to 0 since no tasks are completed yet
-        };
+      const { data, error } = await supabase.from("journal_entries").insert(payload).select("*").maybeSingle();
+      if (error) {
+        console.error("addJournalEntry failed:", error);
+        return null;
       }
-      return g;
-    }));
+      const entry: JournalEntry = {
+        id: data.id,
+        date: data.created_at,
+        content: data.content ?? "",
+        accomplishments: data.accomplishments ?? "",
+        blockers: data.blockers ?? "",
+        gratitude: data.gratitude ?? "",
+        valueServed: data.value_served ?? "",
+        xpEarned: data.xp_earned ?? 10,
+      };
+      setJournalEntries(es => [entry, ...es]);
+      await bumpXP(entry.xpEarned);
+      return entry;
+    },
+    [userId, bumpXP]
+  );
 
-    return goal;
-  }, []);
+  // ---- Derived values -----------------------------------------
 
-  const addJournalEntry = useCallback((e: Omit<JournalEntry, "id" | "xpEarned">) => {
-    const newEntry: JournalEntry = { ...e, id: `entry${Date.now()}`, xpEarned: 10 };
-    setJournalEntries(es => [newEntry, ...es]);
-    setUserProfile(up => ({ ...up, xp: up.xp + newEntry.xpEarned }));
-    return newEntry;
-  }, []);
+  const highImpactTasks = useMemo(
+    () => tasks.filter(t => t.isHighImpact && !t.isCompleted),
+    [tasks]
+  );
 
-  const updateVision = useCallback((vision: string) => {
-    setUserProfile(up => ({ ...up, vision }));
-  }, []);
+  const tasksByStatus = useMemo(
+    () => ({
+      open: tasks.filter(t => t.status === "open"),
+      inProgress: tasks.filter(t => t.status === "inProgress"),
+      done: tasks.filter(t => t.status === "done"),
+    }),
+    [tasks]
+  );
 
-  const togglePinGoal = useCallback(async (id: string) => {
-    console.log('togglePinGoal called with ID:', id);
-    
-    // Get the current state first
-    setPinnedGoalIds(currentPinned => {
-      console.log('Current pinned goals:', currentPinned);
-      
-      // Check if the goal is already pinned
-      const isPinned = currentPinned.includes(id);
-      console.log('Is goal already pinned?', isPinned);
-      
-      // Create the updated array - either remove the goal or add it (limiting to 3 pinned goals)
-      const updated = isPinned
-        ? currentPinned.filter(gid => gid !== id)
-        : [...currentPinned, id].slice(-3);
-      
-      console.log('Updated pinned goals:', updated);
-      
-      // Persist the change to AsyncStorage
-      AsyncStorage.setItem(STORAGE_KEYS.PINNED_GOALS, JSON.stringify(updated))
-        .then(() => console.log('Pinned goals saved to AsyncStorage'))
-        .catch(err => console.error('Error saving pinned goals:', err));
-      
-      return updated;
-    });
-  }, []);
-
-  const deleteGoal = useCallback((id: string) => {
-    // Compute updated values
-    const updatedGoals = goals.filter(g => g.id !== id);
-    const updatedTasks = tasks.filter(t => t.goalId !== id);
-    const updatedPinned = pinnedGoalIds.filter(gid => gid !== id);
-
-    // Update state to trigger re-render
-    setGoals(updatedGoals);
-    setTasks(updatedTasks);
-    setPinnedGoalIds(updatedPinned);
-
-    // Persist changes to AsyncStorage
-    AsyncStorage.multiSet([
-      [STORAGE_KEYS.GOALS, JSON.stringify(updatedGoals)],
-      [STORAGE_KEYS.TASKS, JSON.stringify(updatedTasks)],
-      [STORAGE_KEYS.PINNED_GOALS, JSON.stringify(updatedPinned)],
-    ])
-      .then(() => {
-        console.log("✅ Goal deleted and changes saved:", id);
-      })
-      .catch((err) => {
-        console.error("❌ Error saving after deleting goal:", err);
-      });
-  }, [goals, tasks, pinnedGoalIds]);
-
-  const highImpactTasks = useMemo(() => tasks.filter(t => t.isHighImpact && !t.isCompleted), [tasks]);
-  const tasksByStatus = useMemo(() => ({
-    open: tasks.filter(t => t.status === "open"),
-    inProgress: tasks.filter(t => t.status === "inProgress"),
-    done: tasks.filter(t => t.status === "done"),
-  }), [tasks]);
-
+  // Pinned + not-completed for focus card (unchanged behavior)
   const focusGoals = useMemo(() => {
-    return goals.filter(goal => {
-      // Only include pinned goals that are not completed (progress < 100)
-      // This ensures completed goals are unpinned from home screen
-      return pinnedGoalIds.includes(goal.id) && goal.progress < 100;
-    }).map(goal => {
-      const goalTasks = tasks.filter(t => t.goalId === goal.id);
-      const completedTasks = goalTasks.filter(t => t.status === "done").length;
-      const totalTasks = goalTasks.length || 1;
-      const earnedXP = goalTasks.reduce((sum, t) => t.status === "done" ? sum + (t.xpReward || 0) : sum, 0);
-      
-      // Calculate accurate progress based on task completion
-      const calculatedProgress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-      
-      return {
-        ...goal,
-        progress: calculatedProgress, // Override the stored progress with calculated value
-        completedTasks,
-        totalTasks,
-        earnedXP
-      };
-    });
+    return goals
+      .filter(g => pinnedGoalIds.includes(g.id) && g.progress < 100)
+      .map(g => {
+        const goalTasks = tasks.filter(t => t.goalId === g.id);
+        const earnedXP = goalTasks.reduce((sum, t) => t.status === "done" ? sum + (t.xpReward || 0) : sum, 0);
+        return {
+          ...g,
+          progress: calcGoalProgress(goalTasks),
+          completedTasks: goalTasks.filter(t => t.status === "done").length,
+          totalTasks: goalTasks.length || 1,
+          earnedXP,
+        } as any;
+      });
   }, [goals, pinnedGoalIds, tasks]);
 
   const nextLevelXp = useMemo(() => (userProfile.level + 1) * 100, [userProfile.level]);
   const xpProgress = useMemo(() => (userProfile.xp / nextLevelXp) * 100, [userProfile.xp, nextLevelXp]);
 
   return {
+    // state
+    loading,
     userProfile,
     goals,
     tasks,
@@ -506,22 +584,28 @@ export const [DigmProvider, useDigmStore] = createContextHook(() => {
     quote,
     completedGoal,
     pinnedGoalIds,
+
+    // derived
     highImpactTasks,
     tasksByStatus,
     focusGoals,
     nextLevelXp,
     xpProgress,
-    calculateGoalProgress,
+
+    // actions
+    updateVision,
+    addTask,
     updateTask,
     moveTask,
-    addTask,
     deleteTask,
-    updateGoal,
     addGoal,
+    updateGoal,
     deleteGoal,
     addJournalEntry,
-    updateVision,
     togglePinGoal,
+    bumpXP,
+
+    // misc
     refreshQuote: () => setQuote(getRandomQuote()),
     clearCompletedGoal: () => setCompletedGoal(null),
   };

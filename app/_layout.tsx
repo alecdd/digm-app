@@ -10,6 +10,11 @@ import { CoachProvider } from "@/hooks/useCoachStore";
 import { View, StyleSheet, SafeAreaView } from "react-native";
 import colors from "@/constants/colors";
 import DigmHeader from "@/components/DigmHeader";
+import { supabase } from '@/lib/supabase';
+import { ensureProfile } from "@/lib/supa-user";
+import { useAuthListener } from "@/hooks/useAuthListener";
+import { useRouter } from "expo-router"; // ✅ add at top if not imported
+
 
 const styles = StyleSheet.create({
   container: {
@@ -22,6 +27,12 @@ const styles = StyleSheet.create({
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
+
+function AuthEffects() {
+  // ✅ This runs only when inside <DigmProvider>
+  useAuthListener();
+  return null;
+}
 
 function RootLayoutNav() {
   return (
@@ -58,9 +69,38 @@ function RootLayoutNav() {
   );
 }
 
+
 export default function RootLayout() {
+  const router = useRouter();
+
+  //useAuthListener(); // ✅ call here so it runs when layout mounts
+
   useEffect(() => {
-    SplashScreen.hideAsync();
+    console.log('SB URL:', process.env.EXPO_PUBLIC_SUPABASE_URL);
+
+    (async () => {
+      const u = await ensureProfile();
+      console.log('AUTH USER:', u?.id);
+        const { data: session } = await supabase.auth.getSession();
+
+        if (!session.session) {
+          router.replace("/auth/login?redirect=/onboarding/welcome");
+          return;
+        }
+
+        const { data: p } = await supabase
+          .from("profiles")
+          .select("onboarded")
+          .eq("id", session.session.user.id)
+          .maybeSingle();
+
+        if (p && p.onboarded === false) {
+          router.replace("/onboarding/welcome");
+          return;
+        }
+
+      SplashScreen.hideAsync();
+    })();
   }, []);
 
   return (
@@ -68,15 +108,39 @@ export default function RootLayout() {
       <QueryClientProvider client={queryClient}>
         <DigmProvider>
           <CoachProvider>
-            <GestureHandlerRootView style={{ flex: 1 }}>
-              <View style={styles.container}>
-                <StatusBar style="light" />
-                <RootLayoutNav />
-              </View>
-            </GestureHandlerRootView>
-          </CoachProvider>
-        </DigmProvider>
-      </QueryClientProvider>
-    </trpc.Provider>
-  );
+              <Stack screenOptions={{ headerShown: false }} />
+              {/* 🔐 Now we are inside the provider, safe to subscribe */}
+              <AuthEffects />
+              <GestureHandlerRootView style={{ flex: 1 }}>
+                <View style={styles.container}>
+                  <StatusBar style="light" />
+                  <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+                    <DigmHeader />
+                    <Stack
+                      screenOptions={{
+                        headerShown: false,
+                        contentStyle: { backgroundColor: colors.background },
+                        headerStyle: { backgroundColor: colors.background },
+                        headerTintColor: colors.text,
+                        headerTitleStyle: { fontWeight: "bold" },
+                      }}
+                    >
+                      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                      <Stack.Screen
+                        name="journal/new-entry"
+                        options={{ headerShown: true, title: "New Journal Entry", presentation: "modal" }}
+                      />
+                      <Stack.Screen
+                        name="journal/entry/[id]"
+                        options={{ headerShown: true, title: "Journal Entry" }}
+                      />
+                    </Stack>
+                  </SafeAreaView>
+                </View>
+              </GestureHandlerRootView>
+        </CoachProvider>
+      </DigmProvider>
+    </QueryClientProvider>
+  </trpc.Provider>
+);
 }

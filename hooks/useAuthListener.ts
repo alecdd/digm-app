@@ -2,34 +2,50 @@
 import { useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { useDigmStore } from "@/hooks/useDigmStore";
+import { isAnonymousUser } from "@/lib/supa-user";
 
 export function useAuthListener() {
-  const { bumpXP } = useDigmStore();
+  const { bumpXP, reloadAll } = useDigmStore();
   const rewardedRef = useRef(false);
 
   useEffect(() => {
-    const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event !== "SIGNED_IN" || !session?.user || rewardedRef.current) return;
+    const { data: subscription } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        // Only care about a real sign-in
+        if (event !== "SIGNED_IN") return;
 
-      // check flag
-      const { data: p, error } = await supabase
-        .from("profiles")
-        .select("has_logged_in_before")
-        .eq("id", session.user.id)
-        .maybeSingle();
-      if (error) return;
+        const user = session?.user ?? null;
+        if (!user || isAnonymousUser(user)) return; // ignore anonymous
 
-      if (!p?.has_logged_in_before) {
-        rewardedRef.current = true;
-        await bumpXP(250); // this updates level in the store + persists xp/level to profiles
+        // Make sure Home reflects the real account immediately
+        await reloadAll?.();
 
-        // set the flag so it never double-awards
-        await supabase.from("profiles")
-          .update({ has_logged_in_before: true })
-          .eq("id", session.user.id);
+        // Prevent double-award within this session
+        if (rewardedRef.current) return;
+
+        try {
+          const { data: p, error } = await supabase
+            .from("profiles")
+            .select("has_logged_in_before")
+            .eq("id", user.id)
+            .maybeSingle();
+          if (error) throw error;
+
+          if (!p?.has_logged_in_before) {
+            rewardedRef.current = true;
+            await bumpXP(250); // updates local + persists XP/level
+            await supabase
+              .from("profiles")
+              .update({ has_logged_in_before: true })
+              .eq("id", user.id);
+          }
+        } catch (e: any) {
+          console.warn("Auth reward check failed:", e?.message || e);
+        }
       }
-    });
+    );
 
-    return () => listener?.subscription?.unsubscribe();
-  }, []);
+    // cleanup
+    return () => subscription?.subscription?.unsubscribe?.();
+  }, [bumpXP, reloadAll]);
 }

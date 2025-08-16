@@ -33,7 +33,7 @@ export default function OnboardingWelcome() {
             <Text style={styles.point}>• Earn XP as you make real progress</Text>
           </View>
 
-          <TouchableOpacity style={styles.primaryBtn} onPress={() => router.replace("/onboarding")}>
+          <TouchableOpacity style={styles.primaryBtn} onPress={() => router.push("/onboarding")}>
             <Text style={styles.primaryText}>Start (2–3 min)</Text>
           </TouchableOpacity>
           {/* Optional “Skip for now”

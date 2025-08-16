@@ -37,7 +37,9 @@ export default function DigmHeader() {
   }, [sparkleAnim]);
 
   return (
-    <View style={styles.headerContainer}>
+    <View 
+      pointerEvents="box-none"
+      style={styles.headerContainer}>
       <View style={styles.logoContainer}>
         <DigmLogo size={36} style={styles.logo} animated={true} />
         <View style={styles.logoTextContainer}>

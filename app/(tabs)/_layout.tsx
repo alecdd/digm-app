@@ -1,3 +1,4 @@
+// app/(tabs)/_layout.tsx
 import { Tabs } from "expo-router";
 import { Home, MessageCircle, BookOpen, User } from "lucide-react-native";
 import React from "react";

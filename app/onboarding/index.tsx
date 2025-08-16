@@ -9,6 +9,12 @@ import OnboardingProgress from "@/components/OnboardingProgress";
 import { quickStart } from "@/lib/onboarding";
 import { supabase } from "@/lib/supabase";
 import { ensureProfile } from "@/lib/supa-user";
+import { isAnonymousUser } from "@/lib/supa-user";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useDigmStore } from "@/hooks/useDigmStore";
+import { set } from "zod";
+import { router } from "expo-router";
+
 
 async function isAnonymous(): Promise<boolean> {
   const { data } = await supabase.auth.getUser();
@@ -22,7 +28,6 @@ type Answers = Record<string, any>;
 
 export default function OnboardingScreen() {
   const router = useRouter();
-
   const [userId, setUserId] = useState<string | null>(null);
   const [stepIdx, setStepIdx] = useState(0);
   const total = quickStart.length;
@@ -36,12 +41,12 @@ export default function OnboardingScreen() {
   useEffect(() => {
     (async () => {
       try {
-        const u = await ensureProfile();
-        setUserId(u.id);
+        const { user } = await ensureProfile({ allowAnonymous: true });
+        setUserId(user.id);
         const { data } = await supabase
           .from("onboarding_answers")
           .select("data")
-          .eq("user_id", u.id)
+          .eq("user_id", user.id)
           .maybeSingle();
         if (data?.data) setAnswers(data.data);
       } catch (e: any) {
@@ -100,61 +105,34 @@ const onNext = useCallback(async () => {
     setStepIdx(stepIdx - 1);
   }, [stepIdx, q.key, saveCurrentAnswer]);
 
-  const finalizeOnboarding = useCallback(async () => {
-    if (!userId) return;
-    try {
-        setSaving(true);
+const finalizeOnboarding = useCallback(async () => {
+  try {
+    setSaving(true);
 
-        // Save vision + mark onboarded
-        const vision = answers["vision"] ?? "";
-        const { error: pErr } = await supabase
-        .from("profiles")
-        .update({ vision, onboarded: true, last_active: new Date().toISOString() })
-        .eq("id", userId);
-        if (pErr) throw pErr;
+    // who am I?
+    const { data: u } = await supabase.auth.getUser();
+    const user = u?.user;
+    const isAnon = !!user?.is_anonymous || user?.app_metadata?.provider === "anonymous";
 
-      const title = answers["one_thing"] || "Your #1 Goal";
-      const timeframe = (answers["timeframe"] as string) || "3 months";
-      const due = pickDueDateFromTimeframe(timeframe);
+    if (isAnon) {
+      // 1) cache answers locally (survives OAuth redirect)
+      await AsyncStorage.setItem("pendingOnboardingAnswers", JSON.stringify(answers));
 
-      const { data: gRow, error: gErr } = await supabase
-        .from("goals")
-        .insert({
-          user_id: userId,
-          title,
-          due_date: due.toISOString(),
-          timeframe: mapTimeframe(timeframe),
-          progress: 0,
-        })
-        .select("*")
-        .single();
-      if (gErr) throw gErr;
+      // 2) go to login, ask to come back to /onboarding/finish
+      router.replace({ pathname: "/auth/login", params: { redirect: "/onboarding/finish" } });
+      return; // ⬅️ stop; DO NOT write to DB as anonymous
+    }
 
-      const firstTaskTitle = `First step: ${answers["ninety_day_win"] || "Start now"}`;
-      const { error: tErr } = await supabase.from("tasks").insert({
-        user_id: userId,
-        goal_id: gRow.id,
-        title: firstTaskTitle,
-        status: "open",
-        is_high_impact: true,
-        xp_reward: 15,
-      });
-      if (tErr) throw tErr;
-
-      // Pin new goal
-      const { error: pinErr } = await supabase
-        .from("pinned_goals")
-        .upsert({ user_id: userId, goal_id: gRow.id });
-      if (pinErr) console.error("Pin goal failed:", pinErr);
-
-       setSaving(false);
-    router.replace("/(tabs)"); // <- stay in app, DO NOT go to /auth/login
-  } catch (e: any) {
-    console.error("finalizeOnboarding error:", e?.message || e);
-    setSaving(false);
-    Alert.alert("Oops", "Could not finish onboarding. Please try again.");
-  }
-}, [userId, answers, router]);
+    // (If you ever allow onboarding while already signed-in, you could write here,
+    // but our flow sends anon users to finish, so this block is rarely used.)
+    router.replace({ pathname: "/(tabs)" });
+    } catch (e: any) {
+        console.error("finalizeOnboarding error:", e?.message || e);
+        Alert.alert("Oops", "Could not finish onboarding. Please try again.");
+    } finally {
+        setSaving(false);
+    }
+}, [answers]);
 
   const renderInput = () => {
     if (q.type === "text") {

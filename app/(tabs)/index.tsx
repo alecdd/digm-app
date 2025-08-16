@@ -1,5 +1,5 @@
-import React, { useCallback } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import React, { useCallback, useEffect } from "react";
+import { ScrollView, StyleSheet, View, ActivityIndicator } from "react-native";
 import { useDigmStore } from "@/hooks/useDigmStore";
 import QuoteCard from "@/components/QuoteCard";
 import VisionSnapshot from "@/components/VisionSnapshot";
@@ -11,43 +11,47 @@ import { Task } from "@/types";
 import colors from "@/constants/colors";
 
 export default function HomeScreen() {
-  const { userProfile, quote, tasksByStatus, updateTask, highImpactTasks, completedGoal, clearCompletedGoal } = useDigmStore();
-  
-  // Debug logging for completedGoal state
-  React.useEffect(() => {
-    console.log('🏠 HomeScreen: completedGoal state changed:', completedGoal);
+  const store = useDigmStore();
+  if (!store) return <ActivityIndicator style={{ flex: 1 }} />; // provider not ready yet
+
+  const {
+    loading,
+    userProfile,
+    quote,
+    tasksByStatus,
+    highImpactTasks,
+    completedGoal,
+    clearCompletedGoal,
+    updateTask,
+  } = store;
+
+  useEffect(() => {
+    if (__DEV__) console.log("🏠 Home completedGoal:", completedGoal);
   }, [completedGoal]);
 
   const handleToggleTask = useCallback((task: Task) => {
-    // Don't allow toggling if task is already completed
-    if (task.isCompleted || task.status === "done") {
-      console.log('Task is already completed, cannot toggle');
-      return;
-    }
-
-    const updatedTask = {
+    if (task.isCompleted || task.status === "done") return;
+    updateTask({
       ...task,
       isCompleted: true,
-      status: "done" as const,
+      status: "done",
       completedAt: new Date().toISOString(),
-    };
-    
-    console.log('Toggling task to completed:', updatedTask.title);
-    updateTask(updatedTask);
+    });
   }, [updateTask]);
 
   const handleMoveTask = useCallback((taskId: string, newStatus: "open" | "inProgress" | "done") => {
-    const task = Object.values(tasksByStatus).flat().find(t => t.id === taskId);
-    if (task) {
-      const updatedTask = {
-        ...task,
-        status: newStatus,
-        isCompleted: newStatus === "done",
-        completedAt: newStatus === "done" ? new Date().toISOString() : undefined,
-      };
-      updateTask(updatedTask);
-    }
+    const all = [...tasksByStatus.open, ...tasksByStatus.inProgress, ...tasksByStatus.done];
+    const t = all.find(x => x.id === taskId);
+    if (!t) return;
+    updateTask({
+      ...t,
+      status: newStatus,
+      isCompleted: newStatus === "done",
+      completedAt: newStatus === "done" ? new Date().toISOString() : undefined,
+    });
   }, [tasksByStatus, updateTask]);
+
+  if (loading) return <ActivityIndicator style={{ flex: 1 }} />;
 
   return (
     <>
@@ -56,21 +60,14 @@ export default function HomeScreen() {
           <QuoteCard quote={quote.quote} author={quote.author} />
           <VisionSnapshot vision={userProfile.vision} />
           <FocusGoals />
-          <HighImpactTasks 
-            tasks={highImpactTasks} 
-            onToggleTask={handleToggleTask} 
-          />
-          <WorkflowSection 
-            tasks={tasksByStatus} 
-            onMoveTask={handleMoveTask} 
-          />
+          <HighImpactTasks tasks={highImpactTasks} onToggleTask={handleToggleTask} />
+          <WorkflowSection tasks={tasksByStatus} onMoveTask={handleMoveTask} />
         </View>
       </ScrollView>
-      
-      {/* Goal Completion Effect */}
+
       {completedGoal && (
         <GoalCompletionEffect
-          visible={!!completedGoal}
+          visible
           goalTitle={completedGoal.title}
           onAnimationEnd={clearCompletedGoal}
         />
@@ -80,12 +77,6 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    paddingVertical: 16,
-    paddingBottom: 32,
-  },
+  container: { flex: 1, backgroundColor: colors.background },
+  content: { paddingVertical: 16, paddingBottom: 32 },
 });

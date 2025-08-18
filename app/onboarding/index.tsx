@@ -1,53 +1,66 @@
+// app/onboarding/index.tsx
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
   KeyboardAvoidingView, Platform, ActivityIndicator, Alert, ScrollView
 } from "react-native";
-import { useRouter } from "expo-router";
+import { Href, useRouter } from "expo-router";
+import * as Linking from "expo-linking";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import colors from "@/constants/colors";
 import OnboardingProgress from "@/components/OnboardingProgress";
 import { quickStart } from "@/lib/onboarding";
 import { supabase } from "@/lib/supabase";
 import { ensureProfile } from "@/lib/supa-user";
-import { isAnonymousUser } from "@/lib/supa-user";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useDigmStore } from "@/hooks/useDigmStore";
-import { set } from "zod";
-import { router } from "expo-router";
-
-
-async function isAnonymous(): Promise<boolean> {
-  const { data } = await supabase.auth.getUser();
-  const providers = (data.user?.identities ?? []).map((i: any) => i.provider);
-  // anonymous means: only 'anonymous' provider, or no providers at all
-  return providers.length === 0 || (providers.length === 1 && providers[0] === "anonymous");
-}
-
+import CreateAccountStep, { SignupValues } from "./CreateAccountStep";
+import { BackHandler } from "react-native";
 
 type Answers = Record<string, any>;
 
+function isSignupValid(s: Partial<SignupValues>) {
+  const emailOk = !!s.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.email);
+  const pw = s.password ?? "";
+  const confirm = s.confirm ?? "";
+  const pwOk =
+    /[A-Z]/.test(pw) &&
+    /[a-z]/.test(pw) &&
+    /\d/.test(pw) &&
+    /[^A-Za-z0-9]/.test(pw) &&
+    pw.length >= 8 &&
+    pw.length <= 64 &&
+    !/\s/.test(pw);
+  return Boolean((s.first_name ?? "").trim() && (s.last_name ?? "").trim() && emailOk && pwOk && confirm && pw === confirm);
+}
+
+const isAnon = (u: any) => !!u?.is_anonymous || u?.app_metadata?.provider === "anonymous";
+
+
 export default function OnboardingScreen() {
   const router = useRouter();
-  const [userId, setUserId] = useState<string | null>(null);
+
+  const [userId, setUserId]   = useState<string | null>(null);
   const [stepIdx, setStepIdx] = useState(0);
-  const total = quickStart.length;
-  const step = stepIdx + 1;
+  const totalQs               = quickStart.length;
+  const isAccountStep         = stepIdx === totalQs;
+  const totalSteps            = totalQs + 1;
+  const step                  = stepIdx + 1;
+
   const q = useMemo(() => quickStart[stepIdx], [stepIdx]);
 
   const [answers, setAnswers] = useState<Answers>({});
-  const [draft, setDraft] = useState<string>("");
-  const [saving, setSaving] = useState(false);
+  const [draft, setDraft]     = useState<string>("");
+  const [saving, setSaving]   = useState(false);
+  const [signup, setSignup]   = useState<Partial<SignupValues>>({});
+  const [notice, setNotice] = useState("");
 
+
+  // ensure session (anon allowed) + load any saved answers
   useEffect(() => {
     (async () => {
       try {
         const { user } = await ensureProfile({ allowAnonymous: true });
         setUserId(user.id);
-        const { data } = await supabase
-          .from("onboarding_answers")
-          .select("data")
-          .eq("user_id", user.id)
-          .maybeSingle();
+        const { data } = await supabase.from("onboarding_answers").select("data").eq("user_id", user.id).maybeSingle();
         if (data?.data) setAnswers(data.data);
       } catch (e: any) {
         console.error("Onboarding init failed:", e?.message || e);
@@ -55,87 +68,225 @@ export default function OnboardingScreen() {
     })();
   }, []);
 
+
+    useEffect(() => {
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+        if (isAccountStep) { setStepIdx(totalQs - 1); return true; }
+        if (stepIdx === 0) { router.replace("/onboarding/welcome" as Href); return true; }
+        setStepIdx((i) => Math.max(0, i - 1));
+        return true;
+    });
+    return () => sub.remove();
+    }, [isAccountStep, stepIdx, totalQs, router]);
+
+  // keep draft in sync per question (skip on account step)
   useEffect(() => {
+    if (isAccountStep) { setDraft(""); return; }
     const existing = answers[quickStart[stepIdx]?.key];
     setDraft(existing == null ? "" : String(existing));
-  }, [stepIdx, answers]);
+  }, [stepIdx, answers, isAccountStep]);
 
+  // save single answer; never block progression
   const saveCurrentAnswer = useCallback(async (key: string) => {
-    if (!userId) return false;
     let value: any = draft;
-    if (q.type === "number") {
+    const currentQ = quickStart[stepIdx];
+    if (currentQ?.type === "number") {
       const num = Number(String(draft).replace(/[^\d]/g, ""));
       value = Number.isFinite(num) ? num : 0;
     }
     const newData = { ...answers, [key]: value };
-    setSaving(true);
-    const { error } = await supabase
-      .from("onboarding_answers")
-      .upsert({ user_id: userId, data: newData }, { onConflict: "user_id" });
-    if (error) {
-      console.error("saveAnswer error:", error);
-      Alert.alert("Save failed", "Could not save your answer. Please try again.");
-      setSaving(false);
-      return false;
-    }
     setAnswers(newData);
-    setSaving(false);
-    return true;
-  }, [userId, draft, answers, q.type]);
 
-const onNext = useCallback(async () => {
-  if (q.required && (draft == null || String(draft).trim() === "")) {
-    Alert.alert("One more thing", "Please answer before continuing.");
-    return;
-  }
+    try {
+      const { data: u } = await supabase.auth.getUser();
+      if (!u?.user || isAnon(u.user)) return true; // skip DB write for anon
+      await supabase.from("onboarding_answers").upsert({ user_id: u.user.id, data: newData }, { onConflict: "user_id" });
+      return true;
+    } catch (e) {
+      console.log("[onboarding] save skipped", e);
+      return true;
+    }
+  }, [answers, draft, stepIdx]);
 
-  const ok = await saveCurrentAnswer(q.key);
-  if (!ok) return;
+  // resend verification helper
+  const resendSignupEmail = useCallback(async (email: string) => {
+    await supabase.auth.resend({
+      type: "signup",
+      email,
+      options: {
+        emailRedirectTo:
+          Platform.OS === "web"
+            ? `${window.location.origin}/onboarding/finish`
+            : Linking.createURL("onboarding/finish"),
+      },
+    });
+    Alert.alert("Email sent", "Check your inbox again.");
+  }, []);
 
-  if (stepIdx < total - 1) {
-    setStepIdx(stepIdx + 1);
-  } else {
-    await finalizeOnboarding();
-  }
-}, [q, draft, stepIdx, total, saveCurrentAnswer]);
+  const finalizeOnboarding = useCallback(async () => {
+    try {
+      setSaving(true);
 
-  const onBack = useCallback(async () => {
-    if (stepIdx === 0) return;
-    await saveCurrentAnswer(q.key);
-    setStepIdx(stepIdx - 1);
-  }, [stepIdx, q.key, saveCurrentAnswer]);
-
-const finalizeOnboarding = useCallback(async () => {
-  try {
-    setSaving(true);
-
-    // who am I?
-    const { data: u } = await supabase.auth.getUser();
-    const user = u?.user;
-    const isAnon = !!user?.is_anonymous || user?.app_metadata?.provider === "anonymous";
-
-    if (isAnon) {
-      // 1) cache answers locally (survives OAuth redirect)
+      // cache answers for /onboarding/finish
       await AsyncStorage.setItem("pendingOnboardingAnswers", JSON.stringify(answers));
 
-      // 2) go to login, ask to come back to /onboarding/finish
-      router.replace({ pathname: "/auth/login", params: { redirect: "/onboarding/finish" } });
-      return; // ⬅️ stop; DO NOT write to DB as anonymous
+      // if already a real session, skip signup
+      {
+        const { data: u } = await supabase.auth.getUser();
+        if (u?.user && !isAnon(u.user)) {
+          router.replace("/onboarding/finish");
+          return;
+        }
+        if (u?.user && isAnon(u.user)) {
+          // clear anon so signUp can create a real user cleanly
+          await supabase.auth.signOut();
+        }
+      }
+
+      const first_name = (signup.first_name ?? "").trim();
+      const last_name  = (signup.last_name ?? "").trim();
+      const email      = (signup.email ?? "").trim();
+      const password   = signup.password ?? "";
+      const confirm    = signup.confirm ?? "";
+
+      if (!isSignupValid({ first_name, last_name, email, password, confirm })) {
+        Alert.alert("Missing or invalid info", "Check name, email, and password requirements.");
+        return;
+      }
+
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { first_name, last_name },
+          emailRedirectTo:
+            Platform.OS === "web"
+              ? `${window.location.origin}/onboarding/finish`
+              : Linking.createURL("onboarding/finish"),
+        },
+      });
+
+      if (error) {
+        const msg = (error.message || "").toLowerCase();
+        if (msg.includes("already")) {
+          Alert.alert("Email already registered", "Try signing in instead.");
+            setNotice(""); // clear any prior notice
+          router.replace({ pathname: "/auth/login", params: { redirect: "/onboarding/finish" } });
+          return;
+        }
+        Alert.alert("Signup failed", error.message);
+        return;
+      }
+
+      // if confirmations OFF → have a session now
+      if (data?.session) {
+        router.replace("/onboarding/finish");
+        return;
+      }
+
+      const probe = await supabase.auth.signInWithPassword({ email, password });
+
+      if (!probe.error) {
+        // password works -> real session -> finish
+        router.replace("/onboarding/finish");
+        return;
     }
 
-    // (If you ever allow onboarding while already signed-in, you could write here,
-    // but our flow sends anon users to finish, so this block is rarely used.)
-    router.replace({ pathname: "/(tabs)" });
-    } catch (e: any) {
-        console.error("finalizeOnboarding error:", e?.message || e);
-        Alert.alert("Oops", "Could not finish onboarding. Please try again.");
-    } finally {
-        setSaving(false);
+    const pm = (probe.error.message || "").toLowerCase();
+    if (pm.includes("confirm")) {
+        // truly needs email verification
+        setNotice("We sent a verification email. Please check your inbox (and spam), then sign in.");
+        Alert.alert(
+            "Check your inbox",
+            "Confirm your email, then sign in to finish setup.",
+            [
+            { text: "Resend", onPress: () => resendSignupEmail(email) },
+            { text: "Go to login", onPress: () =>
+                router.replace({ pathname: "/auth/login", params: { redirect: "/onboarding/finish" } }) },
+            ]
+    );
+        return; 
     }
-}, [answers]);
+
+    // otherwise: existing confirmed account with a different password
+    Alert.alert("Email already registered", "Try signing in.");
+    setNotice("");
+    router.replace({ pathname: "/auth/login", params: { redirect: "/onboarding/finish" } });
+    return;
+
+    } catch (e: any) {
+      console.error("finalizeOnboarding", e);
+      Alert.alert("Oops", e?.message ?? "Could not finish onboarding.");
+    } finally {
+      setSaving(false);
+    }
+  }, [answers, signup, router, resendSignupEmail]);
+
+  const onNext = useCallback(async () => {
+    if (isAccountStep) { await finalizeOnboarding(); return; }
+
+    const currentQ = quickStart[stepIdx];
+    if (currentQ?.required && (draft == null || String(draft).trim() === "")) {
+      Alert.alert("One more thing", "Please answer before continuing.");
+      return;
+    }
+
+    try { await saveCurrentAnswer(currentQ.key); } catch {}
+
+    if (stepIdx < totalQs - 1) setStepIdx(stepIdx + 1);
+    else setStepIdx(totalQs);
+  }, [isAccountStep, finalizeOnboarding, stepIdx, totalQs, draft, saveCurrentAnswer]);
+
+    const onBack = useCallback(async () => {
+    if (isAccountStep) {
+        setStepIdx(totalQs - 1); // back from account -> last question
+        return;
+    }
+
+    if (stepIdx === 0) {
+        router.replace("/onboarding/welcome" as Href); // first question -> Welcome
+        return;
+    }
+
+    await saveCurrentAnswer(quickStart[stepIdx].key);
+    setStepIdx((i) => Math.max(0, i - 1));
+    }, [isAccountStep, stepIdx, totalQs, saveCurrentAnswer, router]);
+
+  const onContinueWithGoogle = useCallback(async () => {
+    try {
+      setSaving(true);
+      await AsyncStorage.setItem("pendingOnboardingAnswers", JSON.stringify(answers));
+
+      const redirectTo =
+        Platform.OS === "web"
+          ? `${window.location.origin}/onboarding/finish`
+          : Linking.createURL("onboarding/finish");
+
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo },
+      });
+      if (error) Alert.alert("Google sign-in failed", error.message);
+    } catch (e: any) {
+      console.error("onContinueWithGoogle", e?.message || e);
+      Alert.alert("Google sign-in failed", e?.message || "Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }, [answers]);
 
   const renderInput = () => {
-    if (q.type === "text") {
+    if (isAccountStep) {
+      return (
+        <CreateAccountStep
+          value={signup}
+          onChange={setSignup}
+          onContinueWithGoogle={onContinueWithGoogle}
+        />
+      );
+    }
+
+    if (q?.type === "text") {
       return (
         <TextInput
           style={styles.input}
@@ -147,7 +298,7 @@ const finalizeOnboarding = useCallback(async () => {
         />
       );
     }
-    if (q.type === "number") {
+    if (q?.type === "number") {
       return (
         <TextInput
           style={styles.input}
@@ -159,7 +310,7 @@ const finalizeOnboarding = useCallback(async () => {
         />
       );
     }
-    if (q.type === "single" && q.options) {
+    if (q?.type === "single" && q.options) {
       const current = answers[q.key];
       const pending = draft || current || "";
       return (
@@ -182,7 +333,7 @@ const finalizeOnboarding = useCallback(async () => {
     return (
       <TextInput
         style={styles.input}
-        placeholder={q.placeholder || "YYYY-MM-DD"}
+        placeholder={q?.placeholder || "YYYY-MM-DD"}
         placeholderTextColor={colors.textSecondary}
         value={draft}
         onChangeText={setDraft}
@@ -196,18 +347,40 @@ const finalizeOnboarding = useCallback(async () => {
       behavior={Platform.select({ ios: "padding", android: undefined })}
     >
       <View style={styles.progressWrap}>
-        <OnboardingProgress step={step} total={total} />
+        <OnboardingProgress step={step} total={totalSteps} />
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.centerWrap}
-        keyboardShouldPersistTaps="handled"
-      >
+      <ScrollView contentContainerStyle={styles.centerWrap} keyboardShouldPersistTaps="handled">
         <View style={styles.card}>
-          <Text style={styles.title}>{q.title}</Text>
-          {!!q.subtitle && <Text style={styles.subtitle}>{q.subtitle}</Text>}
+          <Text style={styles.title}>
+            {isAccountStep ? "Create your DIGM account" : q.title}
+          </Text>
+          {!!(!isAccountStep && q.subtitle) && <Text style={styles.subtitle}>{q.subtitle}</Text>}
 
           <View style={{ marginTop: 16 }}>{renderInput()}</View>
+
+          {notice ? (
+            <View
+                style={[
+                styles.noticeBox,
+                { borderColor: colors.primary, backgroundColor: colors.primary + "22" }
+                ]}
+            >
+                <Text style={[styles.noticeText, { color: colors.primary }]}>
+                {notice}
+                </Text>
+
+                {/* Optional: inline “Resend email” link */}
+                {signup?.email ? (
+                <Text
+                    style={[styles.noticeLink, { color: colors.primary }]}
+                    onPress={() => resendSignupEmail(signup.email!)}
+                >
+                    Resend verification email
+                </Text>
+                ) : null}
+            </View>
+            ) : null}
 
           {saving && (
             <View style={styles.savingRow}>
@@ -218,12 +391,13 @@ const finalizeOnboarding = useCallback(async () => {
 
           <View style={styles.navRow}>
             <TouchableOpacity
-              onPress={onBack}
-              disabled={stepIdx === 0 || saving}
-              style={[styles.navBtn, (stepIdx === 0 || saving) && styles.navBtnDisabled]}
+                onPress={onBack}
+                disabled={saving}
+                style={[styles.navBtn, saving && styles.navBtnDisabled]}
             >
-              <Text style={styles.navText}>Back</Text>
+                <Text style={styles.navText}>Back</Text>
             </TouchableOpacity>
+
 
             <View style={{ flex: 1 }} />
 
@@ -235,7 +409,9 @@ const finalizeOnboarding = useCallback(async () => {
               {saving ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.navTextPrimary}>{stepIdx === total - 1 ? "Finish" : "Next"}</Text>
+                <Text style={styles.navTextPrimary}>
+                  {isAccountStep ? "Create account" : stepIdx === totalQs - 1 ? "Continue" : "Next"}
+                </Text>
               )}
             </TouchableOpacity>
           </View>
@@ -245,47 +421,14 @@ const finalizeOnboarding = useCallback(async () => {
   );
 }
 
-function pickDueDateFromTimeframe(tf: string) {
-  const d = new Date();
-  const map: Record<string, number> = {
-    "1 week": 7, "1 month": 30, "3 months": 90, "1 year": 365, "5 years": 365 * 5, "10 years": 365 * 10,
-  };
-  d.setDate(d.getDate() + (map[tf] ?? 90));
-  return d;
-}
-function mapTimeframe(tf: string) {
-  switch (tf) {
-    case "10 years": return "10year";
-    case "5 years":  return "5year";
-    case "1 year":   return "1year";
-    case "3 months": return "3month";
-    case "1 month":  return "1month";
-    case "1 week":   return "1week";
-    default:         return "3month";
-  }
-}
-
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   progressWrap: { paddingHorizontal: 16, paddingTop: 12 },
-  centerWrap: {
-    flexGrow: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 24,
-  },
+  centerWrap: { flexGrow: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 16, paddingVertical: 24 },
   card: {
-    width: "100%",
-    maxWidth: 520,
-    padding: 16,
-    borderRadius: 12,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    shadowColor: colors.primary,
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
+    width: "100%", maxWidth: 520, padding: 16, borderRadius: 12,
+    backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border,
+    shadowColor: colors.primary, shadowOpacity: 0.15, shadowRadius: 8,
   },
   title: { fontSize: 22, fontWeight: "700", color: colors.text, textAlign: "center" },
   subtitle: { marginTop: 6, color: colors.textSecondary, textAlign: "center" },
@@ -307,4 +450,20 @@ const styles = StyleSheet.create({
   navText: { color: colors.text }, navTextPrimary: { color: "#fff", fontWeight: "700" },
   savingRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 12 },
   savingText: { color: colors.textSecondary, fontSize: 12 },
+  noticeBox: {
+  marginTop: 10,
+  paddingVertical: 10,
+  paddingHorizontal: 12,
+  borderRadius: 10,
+  borderWidth: 1,
+},
+noticeText: {
+  textAlign: "center",
+  fontWeight: "600",
+},
+noticeLink: {
+  marginTop: 6,
+  textAlign: "center",
+  textDecorationLine: "underline",
+},
 });

@@ -8,6 +8,9 @@ import { getLevelInfo } from "@/constants/colors";
 
 import { supabase } from "@/lib/supabase";
 import { ensureProfile } from "@/lib/supa-user";
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+
 
 // ---- Helpers --------------------------------------------------
 
@@ -26,6 +29,14 @@ function toProfile(u: any): UserProfile {
     lastActive: u.last_active ?? new Date().toISOString(),
   };
 }
+
+const initialProfile = (): UserProfile => ({
+  vision: "",
+  xp: 0,
+  level: 1,
+  streak: 0,
+  lastActive: new Date().toISOString(),
+});
 
 // ---- Store implementation ------------------------------------
 
@@ -47,6 +58,19 @@ function useDigmStoreImpl() {
   const [quote, setQuote] = useState(getRandomQuote());
   const [completedGoal, setCompletedGoal] = useState<Goal | null>(null);
   const [loading, setLoading] = useState(true);
+
+   /** Full in-memory reset (for sign-out) */
+  const reset = useCallback(() => {
+    setUserId(null);
+    setUserProfile(initialProfile());
+    setGoals([]);
+    setTasks([]);
+    setJournalEntries([]);
+    setPinnedGoalIds([]);
+    setQuote(getRandomQuote());
+    setCompletedGoal(null);
+    setLoading(false);
+  }, []);
 
   /**
    * Reusable loader for ALL app data for a given user id.
@@ -194,7 +218,7 @@ function useDigmStoreImpl() {
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, [userId, fetchAll]);
 
   // ---- Progress helpers ---------------------------------------
 
@@ -611,6 +635,7 @@ function useDigmStoreImpl() {
     reloadAll,
     refreshQuote: () => setQuote(getRandomQuote()),
     clearCompletedGoal: () => setCompletedGoal(null),
+    reset,
   };
 }
 

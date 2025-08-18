@@ -15,6 +15,10 @@ import GoalTimeframeCard from "@/components/GoalTimeframeCard";
 import SmartGoalTemplate from "@/components/SmartGoalTemplate";
 import GoalCompletionEffect from "@/components/GoalCompletionEffect";
 import { Goal } from "@/types";
+import { Link, useRouter } from "expo-router";
+import * as Linking from "expo-linking";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
 
 export default function ProfileScreen() {
   const { userProfile, goals, updateVision, addGoal, completedGoal, clearCompletedGoal } = useDigmStore();
@@ -52,6 +56,13 @@ export default function ProfileScreen() {
   return (
     <ScrollView style={styles.container} testID="profile-screen">
       <Stack.Screen options={{ headerShown: false }} />
+
+        <View style={styles.topRow}>
+            <Text style={styles.screenTitle}>Profile</Text>
+            <Link href="/(tabs)/profile/settings" style={styles.settingsLink}>
+            Settings
+            </Link>
+      </View>
       
       <View style={styles.visionContainer}>
         <View style={styles.visionHeader}>
@@ -203,4 +214,22 @@ const styles = StyleSheet.create({
   goalsContainer: {
     padding: 16,
   },
+  topRow: {
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "space-between",
+  paddingHorizontal: 16,
+  paddingTop: 8,
+  paddingBottom: 4,
+    },
+    screenTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: colors.text,
+    },
+    settingsLink: {
+    color: colors.primary,
+    fontWeight: "700",
+    },
+
 });

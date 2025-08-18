@@ -4,48 +4,53 @@ import { supabase } from "@/lib/supabase";
 import { useDigmStore } from "@/hooks/useDigmStore";
 import { isAnonymousUser } from "@/lib/supa-user";
 
+// Turn this on later if you want to re-enable the reward.
+const LOGIN_REWARD_ENABLED = false;
+
 export function useAuthListener() {
   const { bumpXP, reloadAll } = useDigmStore();
-  const rewardedRef = useRef(false);
+  const handledRef = useRef(false);
 
   useEffect(() => {
-    const { data: subscription } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        // Only care about a real sign-in
-        if (event !== "SIGNED_IN") return;
+    const { data: sub } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event !== "SIGNED_IN") return;
 
-        const user = session?.user ?? null;
-        if (!user || isAnonymousUser(user)) return; // ignore anonymous
+      const user = session?.user ?? null;
+      if (!user || isAnonymousUser(user)) return;
 
-        // Make sure Home reflects the real account immediately
-        await reloadAll?.();
+      // Make sure Home reflects the real account immediately
+      await reloadAll?.();
 
-        // Prevent double-award within this session
-        if (rewardedRef.current) return;
+      // Prevent duplicate work in a single runtime
+      if (handledRef.current) return;
+      handledRef.current = true;
 
-        try {
-          const { data: p, error } = await supabase
+      try {
+        // Check first-login flag
+        const { data: prof, error } = await supabase
+          .from("profiles")
+          .select("has_logged_in_before")
+          .eq("id", user.id)
+          .maybeSingle();
+        if (error) throw error;
+
+        if (!prof?.has_logged_in_before) {
+          // Mark as seen so we don't evaluate again
+          await supabase
             .from("profiles")
-            .select("has_logged_in_before")
-            .eq("id", user.id)
-            .maybeSingle();
-          if (error) throw error;
+            .update({ has_logged_in_before: true })
+            .eq("id", user.id);
 
-          if (!p?.has_logged_in_before) {
-            rewardedRef.current = true;
-            await bumpXP(250); // updates local + persists XP/level
-            await supabase
-              .from("profiles")
-              .update({ has_logged_in_before: true })
-              .eq("id", user.id);
+          // Disabled: no XP/level up on first login
+          if (LOGIN_REWARD_ENABLED) {
+            await bumpXP(250);
           }
-        } catch (e: any) {
-          console.warn("Auth reward check failed:", e?.message || e);
         }
+      } catch (e: any) {
+        console.warn("Auth listener post-login work failed:", e?.message || e);
       }
-    );
+    });
 
-    // cleanup
-    return () => subscription?.subscription?.unsubscribe?.();
+    return () => sub?.subscription?.unsubscribe?.();
   }, [bumpXP, reloadAll]);
 }

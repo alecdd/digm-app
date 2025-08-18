@@ -27,14 +27,20 @@ export default function OnboardingWelcome() {
             and finish what matters.
           </Text>
 
-          <View style={styles.points}>
-            <Text style={styles.point}>• Turn your vision into a clear plan</Text>
-            <Text style={styles.point}>• See today’s 20% tasks that move the needle</Text>
-            <Text style={styles.point}>• Earn XP as you make real progress</Text>
-          </View>
+          <TouchableOpacity
+            style={styles.primary}
+            onPress={() => router.replace("/onboarding")}
+          >
+            <Text style={styles.primaryText}>Get Started</Text>
+          </TouchableOpacity>
 
-          <TouchableOpacity style={styles.primaryBtn} onPress={() => router.push("/onboarding")}>
-            <Text style={styles.primaryText}>Start (2–3 min)</Text>
+          <TouchableOpacity
+            style={styles.outline}
+            onPress={() =>
+              router.replace({ pathname: "/auth/login", params: { redirect: "/(tabs)" } })
+            }
+          >
+            <Text style={styles.outlineText}>I Already Have an Account</Text>
           </TouchableOpacity>
           {/* Optional “Skip for now”
           <TouchableOpacity style={styles.secondaryBtn} onPress={() => router.replace("/(tabs)")}>
@@ -73,14 +79,13 @@ const styles = StyleSheet.create({
   subtitle: { color: colors.textSecondary, textAlign: "center", marginBottom: 16 },
   points: { gap: 6, marginBottom: 20 },
   point: { color: colors.text, textAlign: "center" },
-  primaryBtn: {
-    backgroundColor: colors.primary, paddingVertical: 12, borderRadius: 10,
-    alignItems: "center", marginTop: 4,
-  },
+
+  primary: { marginTop: 20, backgroundColor: colors.primary, borderRadius: 12, paddingVertical: 14, alignItems: "center" },
   primaryText: { color: "#fff", fontWeight: "700" },
-  secondaryBtn: {
-    borderColor: colors.border, borderWidth: 1, paddingVertical: 12,
-    borderRadius: 10, alignItems: "center", marginTop: 12,
+
+  outline: {
+    marginTop: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card,
+    borderRadius: 12, paddingVertical: 14, alignItems: "center",
   },
-  secondaryText: { color: colors.text },
+  outlineText: { color: colors.text, fontWeight: "700" },
 });

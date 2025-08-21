@@ -1,7 +1,7 @@
 // app/_layout.tsx
 import React, { useEffect, useRef } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { SafeAreaView, View, StyleSheet } from "react-native";
+import { SafeAreaView, View, StyleSheet, Linking } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { Stack, useRootNavigationState } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -12,14 +12,18 @@ import { trpc, trpcClient } from "@/lib/trpc";
 import { DigmProvider } from "@/hooks/useDigmStore";
 import { CoachProvider } from "@/hooks/useCoachStore";
 import { useAuthListener } from "@/hooks/useAuthListener";
+import { useSupabaseDeepLink } from "@/hooks/useSupabaseDeepLink";
+
 
 try { SplashScreen.preventAutoHideAsync(); } catch {}
 
 const queryClient = new QueryClient();
 const styles = StyleSheet.create({ container: { flex: 1, backgroundColor: colors.background } });
 function AuthEffects() { useAuthListener(); return null; }
+function DeepLinkEffects() { useSupabaseDeepLink(); return null; }
 
 export default function RootLayout() {
+  useAuthListener
   const navState = useRootNavigationState();
   const hiddenRef = useRef(false);
 
@@ -60,6 +64,7 @@ export default function RootLayout() {
                     <Stack.Screen name="journal/entry/[id]" options={{ headerShown: true, title: "Journal Entry" }} />
                   </Stack>
                   <AuthEffects />
+                  <DeepLinkEffects />
                 </CoachProvider>
               </DigmProvider>
             </SafeAreaView>

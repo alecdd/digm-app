@@ -13,7 +13,7 @@ import { quickStart } from "@/lib/onboarding";
 import { supabase } from "@/lib/supabase";
 import { ensureProfile } from "@/lib/supa-user";
 import CreateAccountStep, { SignupValues } from "./CreateAccountStep";
-import { BackHandler } from "react-native";
+import { BackHandler, Keyboard } from "react-native";
 
 type Answers = Record<string, any>;
 
@@ -40,8 +40,8 @@ export default function OnboardingScreen() {
 
   const [userId, setUserId]   = useState<string | null>(null);
   const [stepIdx, setStepIdx] = useState(0);
-  const totalQs               = quickStart.length;
-  const isAccountStep         = stepIdx === totalQs;
+  const totalQs = quickStart.length;
+  const isAccountStep = stepIdx >= totalQs;
   const totalSteps            = totalQs + 1;
   const step                  = stepIdx + 1;
 
@@ -52,7 +52,10 @@ export default function OnboardingScreen() {
   const [saving, setSaving]   = useState(false);
   const [signup, setSignup]   = useState<Partial<SignupValues>>({});
   const [notice, setNotice] = useState("");
-
+  const stepRef = React.useRef(stepIdx);
+  const draftRef = React.useRef(draft);
+  useEffect(() => { stepRef.current = stepIdx; }, [stepIdx]);
+  useEffect(() => { draftRef.current = draft; }, [draft]);
 
   // ensure session (anon allowed) + load any saved answers
   useEffect(() => {
@@ -123,134 +126,156 @@ export default function OnboardingScreen() {
     Alert.alert("Email sent", "Check your inbox again.");
   }, []);
 
-  const finalizeOnboarding = useCallback(async () => {
-    try {
-      setSaving(true);
+const finalizeOnboarding = useCallback(async () => {
+  const failSafe = setTimeout(() => setSaving(false), 12000);
+  try {
+    setSaving(true);
 
-      // cache answers for /onboarding/finish
-      await AsyncStorage.setItem("pendingOnboardingAnswers", JSON.stringify(answers));
+    await AsyncStorage.setItem("pendingOnboardingAnswers", JSON.stringify(answers));
 
-      // if already a real session, skip signup
-      {
-        const { data: u } = await supabase.auth.getUser();
-        if (u?.user && !isAnon(u.user)) {
-          router.replace("/onboarding/finish");
-          return;
-        }
-        if (u?.user && isAnon(u.user)) {
-          // clear anon so signUp can create a real user cleanly
-          await supabase.auth.signOut();
-        }
-      }
-
-      const first_name = (signup.first_name ?? "").trim();
-      const last_name  = (signup.last_name ?? "").trim();
-      const email      = (signup.email ?? "").trim();
-      const password   = signup.password ?? "";
-      const confirm    = signup.confirm ?? "";
-
-      if (!isSignupValid({ first_name, last_name, email, password, confirm })) {
-        Alert.alert("Missing or invalid info", "Check name, email, and password requirements.");
-        return;
-      }
-
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: { first_name, last_name },
-          emailRedirectTo:
-            Platform.OS === "web"
-              ? `${window.location.origin}/onboarding/finish`
-              : Linking.createURL("onboarding/finish"),
-        },
-      });
-
-      if (error) {
-        const msg = (error.message || "").toLowerCase();
-        if (msg.includes("already")) {
-          Alert.alert("Email already registered", "Try signing in instead.");
-            setNotice(""); // clear any prior notice
-          router.replace({ pathname: "/auth/login", params: { redirect: "/onboarding/finish" } });
-          return;
-        }
-        Alert.alert("Signup failed", error.message);
-        return;
-      }
-
-      // if confirmations OFF → have a session now
-      if (data?.session) {
+    // If we already have a real session, jump to finish
+    {
+      const { data: u } = await supabase.auth.getUser();
+      if (u?.user && !isAnon(u.user)) {
         router.replace("/onboarding/finish");
         return;
       }
-
-      const probe = await supabase.auth.signInWithPassword({ email, password });
-
-      if (!probe.error) {
-        // password works -> real session -> finish
-        router.replace("/onboarding/finish");
-        return;
+      if (u?.user && isAnon(u.user)) {
+        await supabase.auth.signOut();
+      }
+      // give the client a beat to clear the anon session before signUp
+      await supabase.auth.getSession();
+      await new Promise((r) => setTimeout(r, 50));
     }
 
-    const pm = (probe.error.message || "").toLowerCase();
-    if (pm.includes("confirm")) {
-        // truly needs email verification
-        setNotice("We sent a verification email. Please check your inbox (and spam), then sign in.");
-        Alert.alert(
-            "Check your inbox",
-            "Confirm your email, then sign in to finish setup.",
-            [
-            { text: "Resend", onPress: () => resendSignupEmail(email) },
-            { text: "Go to login", onPress: () =>
-                router.replace({ pathname: "/auth/login", params: { redirect: "/onboarding/finish" } }) },
-            ]
-    );
-        return; 
-    }
+    const first_name = (signup.first_name ?? "").trim();
+    const last_name  = (signup.last_name  ?? "").trim();
+    const email      = (signup.email      ?? "").trim();
+    const password   = signup.password ?? "";
+    const confirm    = signup.confirm  ?? "";
 
-    // otherwise: existing confirmed account with a different password
-    Alert.alert("Email already registered", "Try signing in.");
-    setNotice("");
-    router.replace({ pathname: "/auth/login", params: { redirect: "/onboarding/finish" } });
-    return;
-
-    } catch (e: any) {
-      console.error("finalizeOnboarding", e);
-      Alert.alert("Oops", e?.message ?? "Could not finish onboarding.");
-    } finally {
-      setSaving(false);
-    }
-  }, [answers, signup, router, resendSignupEmail]);
-
-  const onNext = useCallback(async () => {
-    if (isAccountStep) { await finalizeOnboarding(); return; }
-
-    const currentQ = quickStart[stepIdx];
-    if (currentQ?.required && (draft == null || String(draft).trim() === "")) {
-      Alert.alert("One more thing", "Please answer before continuing.");
+    if (!isSignupValid({ first_name, last_name, email, password, confirm })) {
+      Alert.alert("Missing or invalid info", "Check name, email, and password requirements.");
       return;
     }
 
-    try { await saveCurrentAnswer(currentQ.key); } catch {}
+    const emailRedirectTo =
+      Platform.OS === "web"
+        ? `${window.location.origin}/onboarding/finish`
+        : Linking.createURL("onboarding/finish");
 
-    if (stepIdx < totalQs - 1) setStepIdx(stepIdx + 1);
-    else setStepIdx(totalQs);
-  }, [isAccountStep, finalizeOnboarding, stepIdx, totalQs, draft, saveCurrentAnswer]);
+    console.log("Mobile Redirect [signup] redirectTo:", emailRedirectTo);
 
-    const onBack = useCallback(async () => {
-    if (isAccountStep) {
-        setStepIdx(totalQs - 1); // back from account -> last question
+    await supabase.auth.signOut({ scope: "global" }).catch(()=>{});
+
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { first_name, last_name },
+        emailRedirectTo,
+      },
+    });
+
+    console.log("[signup] result:", {
+      error: error?.message,
+      hasSession: !!data?.session,
+      userId: data?.user?.id,
+    });
+
+    if (error) {
+      const msg = (error.message || "").toLowerCase();
+      if (msg.includes("already")) {
+        Alert.alert("Email already registered", "Please sign in.");
+        setNotice("");
+        router.replace({ pathname: "/auth/login", params: { redirect: "/onboarding/finish" } });
         return;
+      }
+      Alert.alert("Signup failed", error.message);
+      return;
     }
 
-    if (stepIdx === 0) {
-        router.replace("/onboarding/welcome" as Href); // first question -> Welcome
-        return;
+    // If email confirmations are OFF -> you have a session now
+    if (data?.session) {
+      router.replace("/onboarding/finish");
+      return;
     }
 
-    await saveCurrentAnswer(quickStart[stepIdx].key);
+    // Email confirmation required:
+    // Proactively trigger a resend to make sure an email definitely goes out.
+    try {
+      await supabase.auth.resend({
+        type: "signup",
+        email,
+        options: { emailRedirectTo },
+      });
+      console.log("[signup] resent verification email");
+    } catch (e: any) {
+      console.warn("[signup] resend failed:", e?.message || e);
+    }
+
+    setNotice("We sent a verification email. Please check your inbox (and spam), then sign in.");
+    Alert.alert(
+      "Check your inbox",
+      "Confirm your email, then sign in to finish setup.",
+      [
+        { text: "OK" },
+        {
+          text: "Go to login",
+          onPress: () =>
+            router.replace({ pathname: "/auth/login", params: { redirect: "/onboarding/finish" } }),
+        },
+      ]
+    );
+    return;
+  } catch (e: any) {
+    console.error("finalizeOnboarding", e);
+    Alert.alert("Oops", e?.message ?? "Could not finish onboarding.");
+  } finally {
+    clearTimeout(failSafe);
+    setSaving(false);
+  }
+}, [answers, signup, router]);
+
+const onNext = useCallback(() => {
+  Keyboard.dismiss();
+
+  const idx = stepRef.current;
+  const total = totalQs;
+
+  if (idx >= total) {
+    // account step
+    finalizeOnboarding();
+    return;
+  }
+
+  const currentQ = quickStart[idx];
+  const val = String(draftRef.current ?? "").trim();
+  if (currentQ?.required && !val) {
+    Alert.alert("One more thing", "Please answer before continuing.");
+    return;
+  }
+
+  // do not await: avoid any iOS/network stalls blocking the tap
+  try { saveCurrentAnswer(currentQ.key); } catch {}
+
+  setStepIdx(i => {
+    const next = Math.min(i + 1, totalQs);
+    console.log("advance iOS", { from: i, to: next });
+    return next;
+  });
+}, [finalizeOnboarding, saveCurrentAnswer, totalQs]);
+
+
+  const onBack = useCallback(async () => {
+    const idx = stepRef.current;
+
+    if (idx >= totalQs) { setStepIdx(totalQs - 1); return; }
+    if (idx === 0) { router.replace("/onboarding/welcome" as Href); return; }
+
+    try { await saveCurrentAnswer(quickStart[idx].key); } catch {}
     setStepIdx((i) => Math.max(0, i - 1));
-    }, [isAccountStep, stepIdx, totalQs, saveCurrentAnswer, router]);
+  }, [router, saveCurrentAnswer, totalQs]);
 
   const onContinueWithGoogle = useCallback(async () => {
     try {
@@ -351,7 +376,7 @@ export default function OnboardingScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.centerWrap} keyboardShouldPersistTaps="handled">
-        <View style={styles.card}>
+        <View style={styles.card} pointerEvents="box-none">
           <Text style={styles.title}>
             {isAccountStep ? "Create your DIGM account" : q.title}
           </Text>
@@ -391,9 +416,10 @@ export default function OnboardingScreen() {
 
           <View style={styles.navRow}>
             <TouchableOpacity
-                onPress={onBack}
-                disabled={saving}
-                style={[styles.navBtn, saving && styles.navBtnDisabled]}
+              onPress={onBack}
+              hitSlop={{ top:10, bottom:10, left:10, right:10 }}  // ✅ bigger tap target
+              disabled={saving}
+              style={[styles.navBtn, saving && styles.navBtnDisabled]}
             >
                 <Text style={styles.navText}>Back</Text>
             </TouchableOpacity>
@@ -403,6 +429,7 @@ export default function OnboardingScreen() {
 
             <TouchableOpacity
               onPress={onNext}
+              hitSlop={{ top:10, bottom:10, left:10, right:10 }}  // ✅
               disabled={saving}
               style={[styles.navBtnPrimary, saving && styles.navBtnDisabled]}
             >

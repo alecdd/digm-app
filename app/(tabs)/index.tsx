@@ -9,11 +9,12 @@ import WorkflowSection from "@/components/WorkflowSection";
 import GoalCompletionEffect from "@/components/GoalCompletionEffect";
 import { Task } from "@/types";
 import colors from "@/constants/colors";
+import { useFocusEffect } from "@react-navigation/native";
 
 export default function HomeScreen() {
   const store = useDigmStore();
   if (!store) return <ActivityIndicator style={{ flex: 1 }} />; // provider not ready yet
-
+  
   const {
     loading,
     userProfile,
@@ -24,6 +25,11 @@ export default function HomeScreen() {
     clearCompletedGoal,
     updateTask,
   } = store;
+
+  useFocusEffect(useCallback(() => {
+    store?.reloadAll?.();
+  }, [store]));
+
 
   useEffect(() => {
     if (__DEV__) console.log("🏠 Home completedGoal:", completedGoal);

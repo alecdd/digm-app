@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from "react";
+import React, { useCallback, useEffect,useRef } from "react";
 import { ScrollView, StyleSheet, View, ActivityIndicator } from "react-native";
 import { useDigmStore } from "@/hooks/useDigmStore";
 import QuoteCard from "@/components/QuoteCard";
@@ -24,11 +24,17 @@ export default function HomeScreen() {
     completedGoal,
     clearCompletedGoal,
     updateTask,
+    reloadAll,
   } = store;
 
-  useFocusEffect(useCallback(() => {
-    store?.reloadAll?.();
-  }, [store]));
+  const didFocusOnce = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      if (didFocusOnce.current) return;
+      didFocusOnce.current = true;
+      store?.reloadAll?.();
+    }, [store?.reloadAll]) // depend only on the method
+  );
 
 
   useEffect(() => {

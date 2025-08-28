@@ -17,9 +17,9 @@ export default function SettingsScreen() {
   const [password,  setPassword]  = useState("");
   const [busy, setBusy] = useState(false);
   const store = useDigmStore();
-  const SUPPORT_URL = "https://vznsystems.com";
-  const FAQ_URL     = "https://vznsystems.com";
-  const ABOUT_URL   = "https://vznsystems.com";
+  const SUPPORT_URL = "https://digmapp.com";
+  const FAQ_URL     = "https://digmapp.com";
+  const ABOUT_URL   = "https://digmapp.com";
 
 
   async function openInApp(url: string) {

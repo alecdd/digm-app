@@ -1,11 +1,9 @@
 // hooks/useDigmStore.ts
 import createContextHook from "@nkzw/create-context-hook";
-import { useCallback, useEffect, useMemo, useState } from "react";
-
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { Goal, JournalEntry, Task, TaskStatus, UserProfile } from "@/types";
 import { getRandomQuote } from "@/constants/quotes";
 import { getLevelInfo } from "@/constants/colors";
-
 import { supabase } from "@/lib/supabase";
 import { ensureProfile } from "@/lib/supa-user";
 import { create } from "zustand";
@@ -30,6 +28,9 @@ function toProfile(u: any): UserProfile {
   };
 }
 
+const arraysEqual = (a: string[], b: string[]) =>
+  a.length === b.length && a.every((v, i) => v === b[i]);
+
 const initialProfile = (): UserProfile => ({
   vision: "",
   xp: 0,
@@ -37,9 +38,6 @@ const initialProfile = (): UserProfile => ({
   streak: 0,
   lastActive: new Date().toISOString(),
 });
-
-const arraysEqual = (a: string[], b: string[]) =>
-  a.length === b.length && a.every((v, i) => v === b[i]);
 
 
 // ---- Store implementation ------------------------------------
@@ -62,6 +60,10 @@ function useDigmStoreImpl() {
   const [quote, setQuote] = useState(getRandomQuote());
   const [completedGoal, setCompletedGoal] = useState<Goal | null>(null);
   const [loading, setLoading] = useState(true);
+  const [reloading, setReloading] = useState(false);
+  const reloadAllInFlight = useRef(false);
+
+
 
    /** Full in-memory reset (for sign-out) */
   const reset = useCallback(() => {
@@ -74,6 +76,7 @@ function useDigmStoreImpl() {
     setQuote(getRandomQuote());
     setCompletedGoal(null);
     setLoading(false);
+    setReloading(false);
   }, []);
 
   /**
@@ -81,139 +84,153 @@ function useDigmStoreImpl() {
    * Kept stable with an empty dependency array.
    */
   const fetchAll = useCallback(async (uid: string) => {
-    // profiles
-    {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", uid)
-        .maybeSingle();
-      if (error) throw error;
-      if (data) setUserProfile(toProfile(data));
+  // profiles
+  {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", uid)
+      .maybeSingle();
+    if (error) throw error;
+    if (data) {
+      setUserProfile({
+        vision: data.vision ?? "",
+        xp: data.xp ?? 0,
+        level: data.level ?? 1,
+        streak: data.streak ?? 0,
+        lastActive: data.last_active ?? new Date().toISOString(),
+      });
     }
+    console.log("[fetchAll] profile ok");
+  }
 
-    // pinned goals
-    {
-      const { data, error } = await supabase
-        .from("pinned_goals")
-        .select("goal_id")
-        .eq("user_id", uid);
-      if (error) throw error;
-      setPinnedGoalIds((data ?? []).map((r) => r.goal_id as string));
-    }
+  // pinned goals
+  {
+    const { data, error } = await supabase
+      .from("pinned_goals")
+      .select("goal_id, pinned_at")
+      .eq("user_id", uid)
+      .order("pinned_at", { ascending: true });
+    if (error) throw error;
+    const ids = (data ?? []).map((r: any) => r.goal_id as string);
+    setPinnedGoalIds(prev => (arraysEqual(prev, ids) ? prev : ids));
+    console.log("[fetchAll] pinned:", ids.length);
+  }
 
-    // goals
-    let mappedGoals: Goal[] = [];
-    {
-      const { data, error } = await supabase
-        .from("goals")
-        .select("*")
-        .eq("user_id", uid)
-        .order("created_at", { ascending: true });
-      if (error) throw error;
+  // goals
+  let mappedGoals: Goal[] = [];
+  {
+    const { data, error } = await supabase
+      .from("goals")
+      .select("*")
+      .eq("user_id", uid)
+      .order("created_at", { ascending: true });
+    if (error) throw error;
 
-      mappedGoals = (data ?? []).map((g: any) => ({
-        id: g.id,
-        title: g.title,
-        dueDate: g.due_date,
-        progress: g.progress ?? 0,
-        timeframe: g.timeframe,
-        tasks: [],
-        specific: g.specific ?? undefined,
-        measurable: g.measurable ?? undefined,
-        achievable: g.achievable ?? undefined,
-        relevant: g.relevant ?? undefined,
-        timeBound: g.time_bound ?? undefined,
-      }));
-      setGoals(mappedGoals);
-    }
+    mappedGoals = (data ?? []).map((g: any) => ({
+      id: g.id,
+      title: g.title,
+      dueDate: g.due_date,
+      progress: g.progress ?? 0,
+      timeframe: g.timeframe,
+      tasks: [],
+      specific: g.specific ?? undefined,
+      measurable: g.measurable ?? undefined,
+      achievable: g.achievable ?? undefined,
+      relevant: g.relevant ?? undefined,
+      timeBound: g.time_bound ?? undefined,
+    }));
+    setGoals(mappedGoals);
+    console.log("[fetchAll] goals:", mappedGoals.length);
+  }
 
-    // tasks (then link into goals + recompute goal progress)
-    {
-      const { data, error } = await supabase
-        .from("tasks")
-        .select("*")
-        .eq("user_id", uid)
-        .order("created_at", { ascending: true });
-      if (error) throw error;
+  // tasks (then link into goals + recompute goal progress)
+  {
+    const { data, error } = await supabase
+      .from("tasks")
+      .select("*")
+      .eq("user_id", uid)
+      .order("created_at", { ascending: true });
+    if (error) throw error;
 
-      const mapped: Task[] = (data ?? []).map((t: any) => ({
-        id: t.id,
-        title: t.title,
-        status: t.status,
-        isHighImpact: !!t.is_high_impact,
-        isCompleted: t.status === "done",
-        goalId: t.goal_id ?? undefined,
-        xpReward: t.xp_reward ?? (t.is_high_impact ? 15 : 5),
-        createdAt: t.created_at,
-        completedAt: t.completed_at ?? undefined,
-      }));
+    const mapped: Task[] = (data ?? []).map((t: any) => ({
+      id: t.id,
+      title: t.title,
+      status: t.status,
+      isHighImpact: !!t.is_high_impact,
+      isCompleted: t.status === "done",
+      goalId: t.goal_id ?? undefined,
+      xpReward: t.xp_reward ?? (t.is_high_impact ? 15 : 5),
+      createdAt: t.created_at,
+      completedAt: t.completed_at ?? undefined,
+    }));
 
-      setTasks(mapped);
-      setGoals((g) =>
-        g.map((goal) => {
-          const goalTasks = mapped.filter((t) => t.goalId === goal.id);
-          return {
-            ...goal,
-            tasks: goalTasks.map((t) => t.id),
-            progress: calcGoalProgress(goalTasks),
-          };
-        })
-      );
-    }
+    setTasks(mapped);
+    setGoals((g) =>
+      g.map((goal) => {
+        const goalTasks = mapped.filter((t) => t.goalId === goal.id);
+        const done = goalTasks.filter((t) => t.status === "done").length;
+        const total = goalTasks.length || 1;
+        return {
+          ...goal,
+          tasks: goalTasks.map((t) => t.id),
+          progress: Math.round((done / total) * 100),
+        };
+      })
+    );
+    console.log("[fetchAll] tasks:", mapped.length);
+  }
+}, []);
 
-    // journal entries
-    {
-      const { data, error } = await supabase
-        .from("journal_entries")
-        .select("*")
-        .eq("user_id", uid)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-
-      setJournalEntries(
-        (data ?? []).map((j: any) => ({
-          id: j.id,
-          date: j.created_at,
-          content: j.content ?? "",
-          accomplishments: j.accomplishments ?? "",
-          blockers: j.blockers ?? "",
-          gratitude: j.gratitude ?? "",
-          valueServed: j.value_served ?? "",
-          xpEarned: j.xp_earned ?? 10,
-        }))
-      );
-    }
-  }, []);
 
   /**
    * Initial load (auth + data)
    */
   useEffect(() => {
   (async () => {
-    setLoading(true);
-    try {
-      const { user } = await ensureProfile();
-      const uid = user.id;
-      setUserId(uid);
+      setLoading(true);
+      try {
+        // ✅ Do not create anon sessions here.
+        // Only read whatever session exists (real user after login/confirm).
+        const { data, error } = await supabase.auth.getUser();
+        if (error) {
+          console.warn("Initial auth getUser failed:", error.message);
+          setLoading(false);
+          setQuote(getRandomQuote());
+          return;
+        }
 
-      await fetchAll(uid);          // ⬅️ use the helper here
-    } catch (e) {
-      console.error("Initial load failed:", e);
-    } finally {
-      setLoading(false);
-      setQuote(getRandomQuote());
-    }
-  })();
-}, []);
+        const user = data?.user ?? null;
+        if (!user) {
+          // Not signed in yet (common on onboarding). Leave store empty.
+          setLoading(false);
+          setQuote(getRandomQuote());
+          return;
+        }
+
+        const uid = user.id;
+        setUserId(uid);
+        await new Promise((r) => setTimeout(r, 100));
+        await fetchAll(uid);
+      } catch (e) {
+        console.error("Initial load failed:", e);
+      } finally {
+        setLoading(false);
+        setQuote(getRandomQuote());
+      }
+    })();
+  }, []);
 
 
   /**
    * Public refresher you can call after onboarding/login
    * to make Home reflect the latest DB state.
    */
+  
   const reloadAll = useCallback(async () => {
-    if (!userId) return;
+    if (!userId || reloadAllInFlight.current) return;
+    reloadAllInFlight.current = true;
+    setReloading(true);
     setLoading(true);
     try {
       await fetchAll(userId);
@@ -221,6 +238,8 @@ function useDigmStoreImpl() {
       console.error("reloadAll failed:", e);
     } finally {
       setLoading(false);
+      setReloading(false);
+      reloadAllInFlight.current = false;
     }
   }, [userId, fetchAll]);
 
@@ -521,6 +540,7 @@ function useDigmStoreImpl() {
     async (id: string) => {
       if (!userId) return;
       const isPinned = pinnedGoalIds.includes(id);
+
       if (isPinned) {
         setPinnedGoalIds((ids) => ids.filter((gid) => gid !== id));
         const { error } = await supabase
@@ -530,9 +550,11 @@ function useDigmStoreImpl() {
           .eq("goal_id", id);
         if (error) console.error("unpin failed:", error);
       } else {
-        const next = [...pinnedGoalIds, id].slice(-3);
-        setPinnedGoalIds(next);
-        const { error } = await supabase.from("pinned_goals").insert({ user_id: userId, goal_id: id });
+         const next = [...pinnedGoalIds, id].slice(-3);
+        setPinnedGoalIds((prev) => (arraysEqual(prev, next) ? prev : next));
+        const { error } = await supabase
+          .from("pinned_goals")
+          .insert({ user_id: userId, goal_id: id });
         if (error) console.error("pin failed:", error);
       }
     },
@@ -589,18 +611,22 @@ function useDigmStoreImpl() {
   );
 
   const focusGoals = useMemo(() => {
+    if (!goals.length || !pinnedGoalIds.length) return [];
     return goals
       .filter((g) => pinnedGoalIds.includes(g.id) && g.progress < 100)
       .map((g) => {
         const goalTasks = tasks.filter((t) => t.goalId === g.id);
-        const earnedXP = goalTasks.reduce((sum, t) => (t.status === "done" ? sum + (t.xpReward || 0) : sum), 0);
+        const earnedXP = goalTasks.reduce(
+          (sum, t) => (t.status === "done" ? sum + (t.xpReward || 0) : sum),
+          0
+        );
         return {
           ...g,
           progress: calcGoalProgress(goalTasks),
           completedTasks: goalTasks.filter((t) => t.status === "done").length,
           totalTasks: goalTasks.length || 1,
           earnedXP,
-        } as any;
+        };
       });
   }, [goals, pinnedGoalIds, tasks]);
 

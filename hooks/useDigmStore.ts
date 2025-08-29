@@ -43,6 +43,8 @@ const initialProfile = (): UserProfile => ({
 // ---- Store implementation ------------------------------------
 
 function useDigmStoreImpl() {
+  console.log("[useDigmStore] Initializing store...");
+  
   // Core state
   const [userId, setUserId] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile>({
@@ -62,7 +64,10 @@ function useDigmStoreImpl() {
   const [loading, setLoading] = useState(true);
   const [reloading, setReloading] = useState(false);
   const reloadAllInFlight = useRef(false);
+  const fetchedUsers = useRef<Set<string>>(new Set());
+  const initialLoadComplete = useRef(false);
 
+  console.log("[useDigmStore] Store state initialized");
 
 
    /** Full in-memory reset (for sign-out) */
@@ -77,6 +82,8 @@ function useDigmStoreImpl() {
     setCompletedGoal(null);
     setLoading(false);
     setReloading(false);
+    // Clear fetched users to allow fresh data loading for new users
+    fetchedUsers.current.clear();
   }, []);
 
   /**
@@ -84,104 +91,141 @@ function useDigmStoreImpl() {
    * Kept stable with an empty dependency array.
    */
   const fetchAll = useCallback(async (uid: string) => {
-  // profiles
-  {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", uid)
-      .maybeSingle();
-    if (error) throw error;
-    if (data) {
-      setUserProfile({
-        vision: data.vision ?? "",
-        xp: data.xp ?? 0,
-        level: data.level ?? 1,
-        streak: data.streak ?? 0,
-        lastActive: data.last_active ?? new Date().toISOString(),
-      });
+    if (!uid) {
+      console.warn("[fetchAll] No user ID provided, skipping fetch");
+      return;
     }
-    console.log("[fetchAll] profile ok");
+    
+    try {
+      console.log("[fetchAll] Starting fetch for user:", uid);
+      
+      // profiles
+      {
+        console.log("[fetchAll] Querying profiles table for user:", uid);
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", uid)
+          .maybeSingle();
+        if (error) {
+          console.error("[fetchAll] Profile query error:", error);
+          // Don't throw, just log and continue
+        } else if (data) {
+          console.log("[fetchAll] Profile data found:", data);
+          setUserProfile({
+            vision: data.vision ?? "",
+            xp: data.xp ?? 0,
+            level: data.level ?? 1,
+            streak: data.streak ?? 0,
+            lastActive: data.last_active ?? new Date().toISOString(),
+          });
+          console.log("[fetchAll] profile loaded:", { vision: data.vision, xp: data.xp, level: data.level });
+        } else {
+          console.log("[fetchAll] No profile found for user:", uid);
+        }
+        console.log("[fetchAll] profile ok");
+      }
+
+    // pinned goals
+    {
+      console.log("[fetchAll] Querying pinned_goals table for user:", uid);
+      const { data, error } = await supabase
+        .from("pinned_goals")
+        .select("goal_id, pinned_at")
+        .eq("user_id", uid)
+        .order("pinned_at", { ascending: true });
+      if (error) {
+        console.error("[fetchAll] Pinned goals query error:", error);
+        // Don't throw, just log and continue
+      } else {
+        console.log("[fetchAll] Pinned goals data:", data);
+        const ids = (data ?? []).map((r: any) => r.goal_id as string);
+        setPinnedGoalIds(prev => (arraysEqual(prev, ids) ? prev : ids));
+        console.log("[fetchAll] pinned:", ids.length);
+      }
+    }
+
+    // goals
+    let mappedGoals: Goal[] = [];
+    {
+      console.log("[fetchAll] Querying goals table for user:", uid);
+      const { data, error } = await supabase
+        .from("goals")
+        .select("*")
+        .eq("user_id", uid)
+        .order("created_at", { ascending: true });
+      if (error) {
+        console.error("[fetchAll] Goals query error:", error);
+        // Don't throw, just log and continue
+      } else {
+        console.log("[fetchAll] Goals data:", data);
+        mappedGoals = (data ?? []).map((g: any) => ({
+          id: g.id,
+          title: g.title,
+          dueDate: g.due_date,
+          progress: g.progress ?? 0,
+          timeframe: g.timeframe,
+          tasks: [],
+          specific: g.specific ?? undefined,
+          measurable: g.measurable ?? undefined,
+          achievable: g.achievable ?? undefined,
+          relevant: g.relevant ?? undefined,
+          timeBound: g.time_bound ?? undefined,
+        }));
+        setGoals(mappedGoals);
+        console.log("[fetchAll] goals:", mappedGoals.length, mappedGoals.map(g => g.title));
+      }
+    }
+
+    // tasks (then link into goals + recompute goal progress)
+    {
+      console.log("[fetchAll] Querying tasks table for user:", uid);
+      const { data, error } = await supabase
+        .from("tasks")
+        .select("*")
+        .eq("user_id", uid)
+        .order("created_at", { ascending: true });
+      if (error) {
+        console.error("[fetchAll] Tasks query error:", error);
+        // Don't throw, just log and continue
+      } else {
+        console.log("[fetchAll] Tasks data:", data);
+        const mapped: Task[] = (data ?? []).map((t: any) => ({
+          id: t.id,
+          title: t.title,
+          status: t.status,
+          isHighImpact: !!t.is_high_impact,
+          isCompleted: t.status === "done",
+          goalId: t.goal_id ?? undefined,
+          xpReward: t.xp_reward ?? (t.is_high_impact ? 15 : 5),
+          createdAt: t.created_at,
+          completedAt: t.completed_at ?? undefined,
+        }));
+
+        setTasks(mapped);
+        setGoals((g) =>
+          g.map((goal) => {
+            const goalTasks = mapped.filter((t) => t.goalId === goal.id);
+            const done = goalTasks.filter((t) => t.status === "done").length;
+            const total = goalTasks.length || 1;
+            return {
+              ...goal,
+              tasks: goalTasks.map((t) => t.id),
+              progress: Math.round((done / total) * 100),
+            };
+          })
+        );
+        console.log("[fetchAll] tasks:", mapped.length, mapped.map(t => ({ title: t.title, status: t.status, goalId: t.goalId })));
+      }
+    }
+    
+    console.log("[fetchAll] Completed fetch for user:", uid);
+  } catch (error) {
+    console.error("[fetchAll] Unexpected error during data fetch:", error);
+    // Don't throw here, just log the error and continue
+    // This prevents the app from crashing if there's a database issue
   }
-
-  // pinned goals
-  {
-    const { data, error } = await supabase
-      .from("pinned_goals")
-      .select("goal_id, pinned_at")
-      .eq("user_id", uid)
-      .order("pinned_at", { ascending: true });
-    if (error) throw error;
-    const ids = (data ?? []).map((r: any) => r.goal_id as string);
-    setPinnedGoalIds(prev => (arraysEqual(prev, ids) ? prev : ids));
-    console.log("[fetchAll] pinned:", ids.length);
-  }
-
-  // goals
-  let mappedGoals: Goal[] = [];
-  {
-    const { data, error } = await supabase
-      .from("goals")
-      .select("*")
-      .eq("user_id", uid)
-      .order("created_at", { ascending: true });
-    if (error) throw error;
-
-    mappedGoals = (data ?? []).map((g: any) => ({
-      id: g.id,
-      title: g.title,
-      dueDate: g.due_date,
-      progress: g.progress ?? 0,
-      timeframe: g.timeframe,
-      tasks: [],
-      specific: g.specific ?? undefined,
-      measurable: g.measurable ?? undefined,
-      achievable: g.achievable ?? undefined,
-      relevant: g.relevant ?? undefined,
-      timeBound: g.time_bound ?? undefined,
-    }));
-    setGoals(mappedGoals);
-    console.log("[fetchAll] goals:", mappedGoals.length);
-  }
-
-  // tasks (then link into goals + recompute goal progress)
-  {
-    const { data, error } = await supabase
-      .from("tasks")
-      .select("*")
-      .eq("user_id", uid)
-      .order("created_at", { ascending: true });
-    if (error) throw error;
-
-    const mapped: Task[] = (data ?? []).map((t: any) => ({
-      id: t.id,
-      title: t.title,
-      status: t.status,
-      isHighImpact: !!t.is_high_impact,
-      isCompleted: t.status === "done",
-      goalId: t.goal_id ?? undefined,
-      xpReward: t.xp_reward ?? (t.is_high_impact ? 15 : 5),
-      createdAt: t.created_at,
-      completedAt: t.completed_at ?? undefined,
-    }));
-
-    setTasks(mapped);
-    setGoals((g) =>
-      g.map((goal) => {
-        const goalTasks = mapped.filter((t) => t.goalId === goal.id);
-        const done = goalTasks.filter((t) => t.status === "done").length;
-        const total = goalTasks.length || 1;
-        return {
-          ...goal,
-          tasks: goalTasks.map((t) => t.id),
-          progress: Math.round((done / total) * 100),
-        };
-      })
-    );
-    console.log("[fetchAll] tasks:", mapped.length);
-  }
-}, []);
-
+  }, []);
 
   /**
    * Initial load (auth + data)
@@ -190,6 +234,7 @@ function useDigmStoreImpl() {
   (async () => {
       setLoading(true);
       try {
+        console.log("[useDigmStore] Starting initial load...");
         // ✅ Do not create anon sessions here.
         // Only read whatever session exists (real user after login/confirm).
         const { data, error } = await supabase.auth.getUser();
@@ -201,17 +246,34 @@ function useDigmStoreImpl() {
         }
 
         const user = data?.user ?? null;
+        console.log("[useDigmStore] Auth getUser result:", { 
+          hasUser: !!user, 
+          userId: user?.id, 
+          email: user?.email,
+          isAnonymous: user?.app_metadata?.provider === 'anonymous'
+        });
+        
         if (!user) {
           // Not signed in yet (common on onboarding). Leave store empty.
+          console.log("[useDigmStore] No user found, leaving store empty");
           setLoading(false);
           setQuote(getRandomQuote());
           return;
         }
 
         const uid = user.id;
+        console.log("[useDigmStore] Setting userId and fetching data for:", uid);
         setUserId(uid);
         await new Promise((r) => setTimeout(r, 100));
-        await fetchAll(uid);
+        console.log("[useDigmStore] About to call fetchAll for user:", uid);
+        try {
+          console.log("[useDigmStore] fetchAll function exists:", !!fetchAll);
+          await fetchAll(uid);
+          console.log("[useDigmStore] fetchAll completed for user:", uid);
+          initialLoadComplete.current = true;
+        } catch (fetchError) {
+          console.error("[useDigmStore] fetchAll failed during initial load:", fetchError);
+        }
       } catch (e) {
         console.error("Initial load failed:", e);
       } finally {
@@ -221,27 +283,89 @@ function useDigmStoreImpl() {
     })();
   }, []);
 
-
   /**
    * Public refresher you can call after onboarding/login
    * to make Home reflect the latest DB state.
    */
-  
   const reloadAll = useCallback(async () => {
-    if (!userId || reloadAllInFlight.current) return;
+    // If userId is not set in store yet, try to get it from auth session
+    let uid = userId;
+    if (!uid) {
+      const { data: { user } } = await supabase.auth.getUser();
+      uid = user?.id ?? null;
+      if (uid) {
+        setUserId(uid); // Set userId if we found it
+      }
+    }
+    
+    if (!uid || reloadAllInFlight.current) return;
+    
+    // Wait for initial load to complete if it's still running
+    if (loading && !reloading && !initialLoadComplete.current) {
+      console.log("[reloadAll] Initial load still in progress, waiting...");
+      return;
+    }
+    
+    // If initial load is stuck, force it to complete
+    if (loading && !reloading && initialLoadComplete.current === false) {
+      console.log("[reloadAll] Initial load appears stuck, forcing completion");
+      setLoading(false);
+    }
+      
+    // Only prevent infinite loops if we've already fetched data for this user AND found some data
+    // If we found no data, allow retries (user might be new or data might be loading)
+    const hasData = goals.length > 0 || tasks.length > 0 || userProfile.vision !== "";
+    if (fetchedUsers.current.has(uid) && hasData) {
+      console.log("[reloadAll] Already fetched data for user:", uid, "- skipping");
+      return;
+    }
+
+    // If we've already fetched for this user but found no data, allow one more attempt
+    // This handles cases where the store was reset but the user still needs data
+    if (fetchedUsers.current.has(uid) && !hasData) {
+      console.log("[reloadAll] User marked as fetched but no data found, allowing retry for:", uid);
+      fetchedUsers.current.delete(uid); // Remove from fetched users to allow retry
+    }
+
+    // Simple prevention: only skip if we're already loading
+    if (loading) {
+      console.log("[reloadAll] Already loading, skipping");
+      return;
+    }
+
     reloadAllInFlight.current = true;
     setReloading(true);
     setLoading(true);
     try {
-      await fetchAll(userId);
+      console.log("[reloadAll] About to call fetchAll for user:", uid);
+      await fetchAll(uid);
+      console.log("[reloadAll] fetchAll completed for user:", uid);
+      // Mark this user as fetched to prevent future infinite loops
+      fetchedUsers.current.add(uid);
     } catch (e) {
       console.error("reloadAll failed:", e);
+      // Even if it fails, mark as fetched to prevent infinite retries
+      fetchedUsers.current.add(uid);
     } finally {
       setLoading(false);
       setReloading(false);
       reloadAllInFlight.current = false;
     }
-  }, [userId, fetchAll]);
+  }, [userId, fetchAll, loading, goals.length, tasks.length, userProfile.vision, reloading]);
+
+  // Fallback: if initial load doesn't complete within 5 seconds, try to reload
+  useEffect(() => {
+    if (loading) {
+      const timer = setTimeout(() => {
+        if (loading && userId && !initialLoadComplete.current) {
+          console.log("[useDigmStore] Initial load timeout, forcing reload for user:", userId);
+          reloadAll();
+        }
+      }, 5000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [loading, userId, reloadAll]);
 
   // ---- Progress helpers ---------------------------------------
 
@@ -636,6 +760,7 @@ function useDigmStoreImpl() {
   return {
     // state
     loading,
+    userId,
     userProfile,
     goals,
     tasks,

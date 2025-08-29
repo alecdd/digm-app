@@ -41,8 +41,9 @@ export default function NewJournalEntryScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+      enabled
     >
       <Stack.Screen 
         options={{ 
@@ -57,7 +58,11 @@ export default function NewJournalEntryScreen() {
         </TouchableOpacity>
       </View>
       
-      <ScrollView style={styles.scrollView}>
+      <ScrollView 
+        style={styles.scrollView}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.section}>
           <Text style={styles.label}>Journal Entry</Text>
           <TextInput
@@ -68,6 +73,9 @@ export default function NewJournalEntryScreen() {
             placeholderTextColor={colors.textSecondary}
             multiline
             textAlignVertical="top"
+            autoFocus={false}
+            blurOnSubmit={false}
+            returnKeyType="next"
           />
         </View>
         
@@ -80,6 +88,8 @@ export default function NewJournalEntryScreen() {
             placeholder="List your accomplishments..."
             placeholderTextColor={colors.textSecondary}
             multiline
+            blurOnSubmit={false}
+            returnKeyType="next"
           />
         </View>
         
@@ -92,6 +102,8 @@ export default function NewJournalEntryScreen() {
             placeholder="Identify obstacles..."
             placeholderTextColor={colors.textSecondary}
             multiline
+            blurOnSubmit={false}
+            returnKeyType="next"
           />
         </View>
         
@@ -104,6 +116,8 @@ export default function NewJournalEntryScreen() {
             placeholder="Express gratitude..."
             placeholderTextColor={colors.textSecondary}
             multiline
+            blurOnSubmit={false}
+            returnKeyType="next"
           />
         </View>
         
@@ -116,6 +130,8 @@ export default function NewJournalEntryScreen() {
             placeholder="Reflect on your impact..."
             placeholderTextColor={colors.textSecondary}
             multiline
+            blurOnSubmit={false}
+            returnKeyType="next"
           />
         </View>
         

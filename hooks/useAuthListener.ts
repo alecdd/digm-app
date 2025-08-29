@@ -1,27 +1,37 @@
 // hooks/useAuthListener.ts
 import { useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
-import { useDigmStore } from "@/hooks/useDigmStore";
 
 const LOGIN_REWARD_ENABLED = false;
 
-export function useAuthListener() {
-  const { bumpXP, reloadAll, reset } = useDigmStore();
-
+export function useAuthListener(storeFunctions?: {
+  bumpXP?: (amount: number) => Promise<void>;
+  reloadAll?: () => Promise<void>;
+  reset?: () => void;
+}) {
   // keep latest function refs so the effect can be [] (subscribe once)
-  const reloadAllRef = useRef(reloadAll);
-  const resetRef = useRef(reset);
-  const bumpXPRef = useRef(bumpXP);
-  useEffect(() => { reloadAllRef.current = reloadAll; }, [reloadAll]);
-  useEffect(() => { resetRef.current = reset; }, [reset]);
-  useEffect(() => { bumpXPRef.current = bumpXP; }, [bumpXP]);
+  const reloadAllRef = useRef(storeFunctions?.reloadAll);
+  const resetRef = useRef(storeFunctions?.reset);
+  const bumpXPRef = useRef(storeFunctions?.bumpXP);
+  
+  useEffect(() => { 
+    reloadAllRef.current = storeFunctions?.reloadAll; 
+  }, [storeFunctions?.reloadAll]);
+  
+  useEffect(() => { 
+    resetRef.current = storeFunctions?.reset; 
+  }, [storeFunctions?.reset]);
+  
+  useEffect(() => { 
+    bumpXPRef.current = storeFunctions?.bumpXP; 
+  }, [storeFunctions?.bumpXP]);
 
   const lastUid = useRef<string | null>(null);
 
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange(async (event, session) => {
       const uid = session?.user?.id ?? null;
-      // console.log("[auth]", event, "uid:", uid);
+      console.log("[auth]", event, "uid:", uid);
 
       if (event === "SIGNED_OUT") {
         lastUid.current = null;
@@ -36,12 +46,16 @@ export function useAuthListener() {
 
       if (shouldReload) {
         lastUid.current = uid;
-        // tiny yield so supabase-js applies new session before fetching
-        await new Promise((r) => setTimeout(r, 30));
-        await reloadAllRef.current?.();
+        // Wait a bit longer to ensure the store is properly initialized
+        await new Promise((r) => setTimeout(r, 100));
+        try {
+          await reloadAllRef.current?.();
+        } catch (e) {
+          console.error("Failed to reload data after auth:", e);
+        }
       }
 
-      // Optional first-login reward (kept here; won’t affect reload loop)
+      // Optional first-login reward (kept here; won't affect reload loop)
       if (LOGIN_REWARD_ENABLED && event === "SIGNED_IN" && uid) {
         try {
           const { data: prof, error } = await supabase

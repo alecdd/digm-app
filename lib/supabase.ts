@@ -36,24 +36,35 @@ const nativeStorage =
         removeItem: SecureStore.deleteItemAsync,
       } as any);
 
-  export const supabase = createClient(
-    process.env.EXPO_PUBLIC_SUPABASE_URL!,       // ← revert to raw envs
-    process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!,  // ← revert to raw envs
-    {
-      auth:
-        Platform.OS === "web"
-          ? {
-              detectSessionInUrl: true,
-              autoRefreshToken: true,
-              persistSession: true,
-              flowType: "implicit",
-            }
-          : {
-              detectSessionInUrl: false,
-              autoRefreshToken: true,
-              persistSession: true,
-              flowType: "pkce",
-              storage: nativeStorage,
-            },
-    }
-  );
+export const supabase = createClient(
+  process.env.EXPO_PUBLIC_SUPABASE_URL!,       // ← revert to raw envs
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!,  // ← revert to raw envs
+  {
+    auth:
+      Platform.OS === "web"
+        ? {
+            detectSessionInUrl: true,
+            autoRefreshToken: true,
+            persistSession: true,
+            flowType: "implicit",
+          }
+        : {
+            detectSessionInUrl: false,
+            autoRefreshToken: true,
+            persistSession: true,
+            flowType: "pkce",
+            storage: nativeStorage,
+          },
+  }
+);
+
+// Test the connection after client is created
+supabase.auth.getUser().then(({ data, error }) => {
+  if (error) {
+    console.warn("[supabase] Initial auth test failed:", error.message);
+  } else {
+    console.log("[supabase] Initial auth test successful, user:", data.user?.id ? "logged in" : "not logged in");
+  }
+}).catch(err => {
+  console.error("[supabase] Initial connection test failed:", err);
+});

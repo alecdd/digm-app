@@ -14,13 +14,21 @@ export default function TabLayout() {
             borderTopColor: colors.border,
             borderTopWidth: 1,
             paddingTop: 8,
-            height: 70,
+            height: 80,
+            paddingBottom: 8,
           },
           headerShown: false,
           tabBarLabelStyle: {
             fontSize: 12,
             fontWeight: '600',
             marginTop: 4,
+          },
+          tabBarIconStyle: {
+            marginTop: 4,
+          },
+          tabBarItemStyle: {
+            paddingVertical: 8,
+            minHeight: 60,
           },
         }}
       >
@@ -31,7 +39,7 @@ export default function TabLayout() {
             tabBarIcon: ({ color, focused }) => (
               <Home 
                 color={color} 
-                size={focused ? 26 : 24} 
+                size={focused ? 28 : 26} 
                 fill={focused ? color : 'transparent'}
               />
             ),
@@ -44,7 +52,7 @@ export default function TabLayout() {
             tabBarIcon: ({ color, focused }) => (
               <MessageCircle 
                 color={color} 
-                size={focused ? 26 : 24}
+                size={focused ? 28 : 26}
                 fill={focused ? color : 'transparent'}
               />
             ),
@@ -57,7 +65,7 @@ export default function TabLayout() {
             tabBarIcon: ({ color, focused }) => (
               <BookOpen 
                 color={color} 
-                size={focused ? 26 : 24}
+                size={focused ? 28 : 26}
                 fill={focused ? color : 'transparent'}
               />
             ),
@@ -70,7 +78,7 @@ export default function TabLayout() {
             tabBarIcon: ({ color, focused }) => (
               <User 
                 color={color} 
-                size={focused ? 26 : 24}
+                size={focused ? 28 : 26}
                 fill={focused ? color : 'transparent'}
               />
             ),

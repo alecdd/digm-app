@@ -25,9 +25,31 @@ export default function HomeScreen() {
     clearCompletedGoal,
     updateTask,
     reloadAll,
+    goals,
+    tasks,
   } = store;
 
+  // Debug logging
+  useEffect(() => {
+    console.log("[Home] Store state:", {
+      loading,
+      goalsCount: goals?.length || 0,
+      tasksCount: tasks?.length || 0,
+      userProfile: { vision: userProfile.vision, xp: userProfile.xp, level: userProfile.level },
+      highImpactTasksCount: highImpactTasks?.length || 0,
+      tasksByStatus: {
+        open: tasksByStatus.open?.length || 0,
+        inProgress: tasksByStatus.inProgress?.length || 0,
+        done: tasksByStatus.done?.length || 0,
+      }
+    });
+  }, [loading, goals, tasks, userProfile, highImpactTasks, tasksByStatus]);
+
   const didFocusOnce = useRef(false);
+  const reloadAttempts = useRef(0);
+  const lastUserId = useRef<string | null>(null);
+  const hasAttemptedReload = useRef(false);
+  
   useFocusEffect(
     useCallback(() => {
       if (didFocusOnce.current) return;
@@ -35,6 +57,44 @@ export default function HomeScreen() {
       store?.reloadAll?.();
     }, [store?.reloadAll]) // depend only on the method
   );
+
+  // Fallback: ensure data is loaded when component mounts
+  useEffect(() => {
+    // Only trigger if we haven't loaded data and haven't already attempted a reload
+    if (!loading && !store?.goals?.length && !store?.tasks?.length && !hasAttemptedReload.current) {
+      console.log("[Home] No data found, triggering reload (attempt", reloadAttempts.current + 1, ")");
+      hasAttemptedReload.current = true;
+      reloadAttempts.current += 1;
+      store?.reloadAll?.();
+    } else if (hasAttemptedReload.current) {
+      console.log("[Home] Already attempted reload, not triggering again");
+    }
+  }, [loading, store?.goals?.length, store?.tasks?.length, store?.reloadAll]);
+
+  // Additional fallback: if user is authenticated but no data after a delay
+  useEffect(() => {
+    if (store?.userId && !loading && !store?.goals?.length && !store?.tasks?.length) {
+      const timer = setTimeout(() => {
+        if (!store?.goals?.length && !store?.tasks?.length) {
+          console.log("[Home] User authenticated but no data after delay, forcing reload");
+          store?.reloadAll?.();
+        }
+      }, 2000); // Wait 2 seconds for data to load
+      
+      return () => clearTimeout(timer);
+    }
+  }, [store?.userId, loading, store?.goals?.length, store?.tasks?.length, store?.reloadAll]);
+
+  // Reset reload attempts when user changes
+  useEffect(() => {
+    const currentUserId = store?.userId;
+    if (currentUserId && currentUserId !== lastUserId.current) {
+      console.log("[Home] User changed, resetting reload attempts");
+      lastUserId.current = currentUserId;
+      reloadAttempts.current = 0;
+      hasAttemptedReload.current = false;
+    }
+  }, [store?.userId]);
 
 
   useEffect(() => {
@@ -65,6 +125,12 @@ export default function HomeScreen() {
 
   if (loading) return <ActivityIndicator style={{ flex: 1 }} />;
 
+  // Safety check - ensure all required data is available before rendering
+  if (!quote?.quote || !quote?.author) {
+    console.log("[Home] Required data not available, showing loading");
+    return <ActivityIndicator style={{ flex: 1 }} />;
+  }
+
   return (
     <>
       <ScrollView style={styles.container} testID="home-screen">
@@ -72,8 +138,8 @@ export default function HomeScreen() {
           <QuoteCard quote={quote.quote} author={quote.author} />
           <VisionSnapshot vision={userProfile.vision} />
           <FocusGoals />
-          <HighImpactTasks tasks={highImpactTasks} onToggleTask={handleToggleTask} />
-          <WorkflowSection tasks={tasksByStatus} onMoveTask={handleMoveTask} />
+          <HighImpactTasks tasks={highImpactTasks || []} onToggleTask={handleToggleTask} />
+          <WorkflowSection tasks={tasksByStatus || { open: [], inProgress: [], done: [] }} onMoveTask={handleMoveTask} />
         </View>
       </ScrollView>
 

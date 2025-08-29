@@ -7,6 +7,15 @@ interface VisionSnapshotProps {
 }
 
 export default function VisionSnapshot({ vision }: VisionSnapshotProps) {
+  if (!vision || vision.trim() === "") {
+    return (
+      <View style={styles.container} testID="vision-snapshot">
+        <Text style={styles.title}>Vision Snapshot</Text>
+        <Text style={styles.visionText}>No vision set yet. Complete onboarding to set your vision.</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container} testID="vision-snapshot">
       <Text style={styles.title}>Vision Snapshot</Text>

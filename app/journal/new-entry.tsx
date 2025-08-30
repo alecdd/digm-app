@@ -1,53 +1,146 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useState, useEffect, useRef } from "react";
 import { 
-  KeyboardAvoidingView, 
-  Platform, 
-  ScrollView, 
   StyleSheet, 
   Text, 
   TextInput, 
   TouchableOpacity, 
-  View 
+  View,
+  SafeAreaView
 } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import colors from "@/constants/colors";
 import { useDigmStore } from "@/hooks/useDigmStore";
 
+// Global variable to store draft data outside of React lifecycle
+let globalDraft = {
+  content: "",
+  accomplishments: "",
+  blockers: "",
+  gratitude: "",
+  valueServed: ""
+};
+
 export default function NewJournalEntryScreen() {
-  const { addJournalEntry } = useDigmStore();
+  // Temporarily comment out store to test if that's causing the issue
+  // const { addJournalEntry } = useDigmStore();
   const router = useRouter();
   
-  const [content, setContent] = useState("");
-  const [accomplishments, setAccomplishments] = useState("");
-  const [blockers, setBlockers] = useState("");
-  const [gratitude, setGratitude] = useState("");
-  const [valueServed, setValueServed] = useState("");
+  // Use refs to maintain actual values that won't be reset
+  const contentRef = useRef("");
+  const accomplishmentsRef = useRef("");
+  const blockersRef = useRef("");
+  const gratitudeRef = useRef("");
+  const valueServedRef = useRef("");
+  
+  // Use a single state object initialized from global draft
+  const [formData, setFormData] = useState(globalDraft);
+  
+  // Destructure for easier access
+  const { content, accomplishments, blockers, gratitude, valueServed } = formData;
+  
+  // Optimized change handlers - no debug logging to prevent performance issues
+  const handleContentChange = useCallback((text: string) => {
+    contentRef.current = text; // Store in ref
+    globalDraft.content = text; // Store in global draft
+    setFormData(prev => ({ ...prev, content: text }));
+  }, []);
+  
+  const handleAccomplishmentsChange = useCallback((text: string) => {
+    accomplishmentsRef.current = text; // Store in ref
+    globalDraft.accomplishments = text; // Store in global draft
+    setFormData(prev => ({ ...prev, accomplishments: text }));
+  }, []);
+  
+  const handleBlockersChange = useCallback((text: string) => {
+    blockersRef.current = text; // Store in ref
+    globalDraft.blockers = text; // Store in global draft
+    setFormData(prev => ({ ...prev, blockers: text }));
+  }, []);
+  
+  const handleGratitudeChange = useCallback((text: string) => {
+    gratitudeRef.current = text; // Store in ref
+    globalDraft.gratitude = text; // Store in global draft
+    setFormData(prev => ({ ...prev, gratitude: text }));
+  }, []);
+  
+  const handleValueServedChange = useCallback((text: string) => {
+    valueServedRef.current = text; // Store in ref
+    globalDraft.valueServed = text; // Store in global draft
+    setFormData(prev => ({ ...prev, valueServed: text }));
+  }, []);
 
-  const handleSave = useCallback(() => {
-    if (content.trim()) {
-      addJournalEntry({
-        date: new Date().toISOString(),
-        content,
-        accomplishments,
-        blockers,
-        gratitude,
-        valueServed,
+
+
+  // Restore values from global draft only when component mounts
+  useEffect(() => {
+    // Only restore if the component has been reset but global draft has data
+    if (content === "" && globalDraft.content !== "") {
+      console.log("Restoring from global draft on mount");
+      setFormData({
+        content: globalDraft.content,
+        accomplishments: globalDraft.accomplishments,
+        blockers: globalDraft.blockers,
+        gratitude: globalDraft.gratitude,
+        valueServed: globalDraft.valueServed
       });
+    }
+  }, []); // Only run on mount
+
+  // Removed debug useEffects that were causing re-renders
+
+
+
+  const handleSave = useCallback(async () => {
+    // Get values from global draft
+    const contentToSave = globalDraft.content.trim();
+    const accomplishmentsToSave = globalDraft.accomplishments.trim();
+    const blockersToSave = globalDraft.blockers.trim();
+    const gratitudeToSave = globalDraft.gratitude.trim();
+    const valueServedToSave = globalDraft.valueServed.trim();
+    
+    if (contentToSave) {
+      // Temporarily comment out to test if store is causing the issue
+      // addJournalEntry({
+      //   date: new Date().toISOString(),
+      //   content: contentToSave,
+      //   accomplishments: accomplishmentsToSave,
+      //   blockers: blockersToSave,
+      //   gratitude: gratitudeToSave,
+      //   valueServed: valueServedToSave,
+      // });
+      
+      console.log("Would save:", { 
+        content: contentToSave, 
+        accomplishments: accomplishmentsToSave, 
+        blockers: blockersToSave, 
+        gratitude: gratitudeToSave, 
+        valueServed: valueServedToSave 
+      });
+      
+      // Clear the global draft after saving
+      globalDraft = {
+        content: "",
+        accomplishments: "",
+        blockers: "",
+        gratitude: "",
+        valueServed: ""
+      };
       
       router.back();
     }
-  }, [content, accomplishments, blockers, gratitude, valueServed, addJournalEntry, router]);
+  }, [router]);
+
+
+
+
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
-      enabled
-    >
+    <SafeAreaView style={styles.container}>
       <Stack.Screen 
         options={{ 
           headerShown: false,
+          presentation: 'card',
+          animation: 'slide_from_right',
         }} 
       />
       
@@ -58,24 +151,26 @@ export default function NewJournalEntryScreen() {
         </TouchableOpacity>
       </View>
       
-      <ScrollView 
-        style={styles.scrollView}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={styles.contentContainer}>
         <View style={styles.section}>
           <Text style={styles.label}>Journal Entry</Text>
           <TextInput
+            key="content-input"
             style={styles.contentInput}
             value={content}
-            onChangeText={setContent}
+            onChangeText={handleContentChange}
             placeholder="Write about your day..."
             placeholderTextColor={colors.textSecondary}
             multiline
             textAlignVertical="top"
             autoFocus={false}
             blurOnSubmit={false}
-            returnKeyType="next"
+            returnKeyType="default"
+            enablesReturnKeyAutomatically={true}
+            autoCorrect={false}
+            autoCapitalize="sentences"
+            onFocus={() => console.log("Content input focused")}
+            onBlur={() => console.log("Content input blurred")}
           />
         </View>
         
@@ -84,12 +179,16 @@ export default function NewJournalEntryScreen() {
           <TextInput
             style={styles.input}
             value={accomplishments}
-            onChangeText={setAccomplishments}
+            onChangeText={handleAccomplishmentsChange}
             placeholder="List your accomplishments..."
             placeholderTextColor={colors.textSecondary}
             multiline
             blurOnSubmit={false}
-            returnKeyType="next"
+            returnKeyType="default"
+            enablesReturnKeyAutomatically={true}
+            scrollEnabled={true}
+            onFocus={() => console.log("Accomplishments input focused")}
+            onBlur={() => console.log("Accomplishments input blurred")}
           />
         </View>
         
@@ -98,12 +197,16 @@ export default function NewJournalEntryScreen() {
           <TextInput
             style={styles.input}
             value={blockers}
-            onChangeText={setBlockers}
+            onChangeText={handleBlockersChange}
             placeholder="Identify obstacles..."
             placeholderTextColor={colors.textSecondary}
             multiline
             blurOnSubmit={false}
-            returnKeyType="next"
+            returnKeyType="default"
+            enablesReturnKeyAutomatically={true}
+            scrollEnabled={true}
+            onFocus={() => console.log("Blockers input focused")}
+            onBlur={() => console.log("Blockers input blurred")}
           />
         </View>
         
@@ -112,12 +215,16 @@ export default function NewJournalEntryScreen() {
           <TextInput
             style={styles.input}
             value={gratitude}
-            onChangeText={setGratitude}
+            onChangeText={handleGratitudeChange}
             placeholder="Express gratitude..."
             placeholderTextColor={colors.textSecondary}
             multiline
             blurOnSubmit={false}
-            returnKeyType="next"
+            returnKeyType="default"
+            enablesReturnKeyAutomatically={true}
+            scrollEnabled={true}
+            onFocus={() => console.log("Gratitude input focused")}
+            onBlur={() => console.log("Gratitude input blurred")}
           />
         </View>
         
@@ -126,20 +233,24 @@ export default function NewJournalEntryScreen() {
           <TextInput
             style={styles.input}
             value={valueServed}
-            onChangeText={setValueServed}
+            onChangeText={handleValueServedChange}
             placeholder="Reflect on your impact..."
             placeholderTextColor={colors.textSecondary}
             multiline
             blurOnSubmit={false}
-            returnKeyType="next"
+            returnKeyType="default"
+            enablesReturnKeyAutomatically={true}
+            scrollEnabled={true}
+            onFocus={() => console.log("Value served input focused")}
+            onBlur={() => console.log("Value served input blurred")}
           />
         </View>
         
         <View style={styles.xpNotice}>
           <Text style={styles.xpText}>+10 XP for completing this entry</Text>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </View>
+    </SafeAreaView>
   );
 }
 
@@ -148,8 +259,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  scrollView: {
+
+  contentContainer: {
     flex: 1,
+    paddingBottom: 100,
   },
   headerSection: {
     flexDirection: 'row',
@@ -188,6 +301,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 8,
   },
+
   contentInput: {
     backgroundColor: colors.card,
     borderRadius: 8,

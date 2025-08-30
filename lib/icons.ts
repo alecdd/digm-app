@@ -14,6 +14,9 @@ import {
   Trash2,
   ChevronRight,
   Plus,
+  Send,
+  Brain,
+  RefreshCw,
 } from 'lucide-react-native';
 
 export {
@@ -30,4 +33,7 @@ export {
   Trash2 as Trash,
   Plus,
   ChevronRight,
+  Send,
+  Brain,
+  RefreshCw,
 };

@@ -1,5 +1,5 @@
 import createContextHook from "@nkzw/create-context-hook";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { mockCoachMessages, coachSuggestions } from "@/mocks/data";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -14,14 +14,14 @@ export const [CoachProvider, useCoachStore] = createContextHook(() => {
   const [messages, setMessages] = useState<Message[]>([]);
   
   // Initialize messages from mock data
-  useState(() => {
+  useEffect(() => {
     // Convert mock data to match Message type
     const typedMessages: Message[] = mockCoachMessages.map(msg => ({
       ...msg,
       sender: msg.sender as "user" | "coach"
     }));
     setMessages(typedMessages);
-  });
+  }, []);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   // Load messages from storage
@@ -46,43 +46,34 @@ export const [CoachProvider, useCoachStore] = createContextHook(() => {
   }, []);
 
   // Send a message
-  const sendMessage = useCallback(async (content: string) => {
+  const sendMessage = useCallback(async (content: string, sender: "user" | "coach" = "user") => {
     if (!content.trim()) return;
 
-    const userMessage: Message = {
+    const newMessage: Message = {
       id: `msg${Date.now()}`,
-      sender: "user",
+      sender,
       content,
       timestamp: new Date().toISOString(),
     };
 
-    const updatedMessages = [...messages, userMessage];
-    setMessages(updatedMessages);
-    saveMessages(updatedMessages);
+    console.log(`[CoachStore] Adding message:`, { sender, content: content.substring(0, 50) });
+
+    // Use functional state update to ensure we have the latest messages
+    setMessages(prevMessages => {
+      const updatedMessages = [...prevMessages, newMessage];
+      console.log(`[CoachStore] Updated messages count:`, updatedMessages.length);
+      
+      // Save to storage asynchronously
+      saveMessages(updatedMessages);
+      
+      return updatedMessages;
+    });
     
-    // Simulate AI response
-    setIsLoading(true);
-    
-    try {
-      // In a real app, this would be an API call to an AI service
-      setTimeout(() => {
-        const coachResponse: Message = {
-          id: `msg${Date.now() + 1}`,
-          sender: "coach",
-          content: getCoachResponse(content),
-          timestamp: new Date().toISOString(),
-        };
-        
-        const messagesWithResponse = [...updatedMessages, coachResponse];
-        setMessages(messagesWithResponse);
-        saveMessages(messagesWithResponse);
-        setIsLoading(false);
-      }, 1500);
-    } catch (error) {
-      console.error("Error getting coach response:", error);
-      setIsLoading(false);
+    // No more hardcoded AI responses - they come from the actual AI API
+    if (sender === "user") {
+      setIsLoading(false); // Don't set loading here, let the component handle it
     }
-  }, [messages, saveMessages]);
+  }, [saveMessages]);
 
   // Get coach suggestions
   const getSuggestions = useCallback(() => {

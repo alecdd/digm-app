@@ -1,0 +1,8 @@
+# Exclude development-only and large/unnecessary files from EAS build archive
+backend/
+venv/
+.expo/
+.env
+backend/.env
+bun.lock
+*.log

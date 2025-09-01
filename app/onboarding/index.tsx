@@ -277,28 +277,10 @@ const onNext = useCallback(() => {
     setStepIdx((i) => Math.max(0, i - 1));
   }, [router, saveCurrentAnswer, totalQs]);
 
+  // Google OAuth disabled for v1
   const onContinueWithGoogle = useCallback(async () => {
-    try {
-      setSaving(true);
-      await AsyncStorage.setItem("pendingOnboardingAnswers", JSON.stringify(answers));
-
-      const redirectTo =
-        Platform.OS === "web"
-          ? `${window.location.origin}/onboarding/finish`
-          : Linking.createURL("onboarding/finish");
-
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: { redirectTo },
-      });
-      if (error) Alert.alert("Google sign-in failed", error.message);
-    } catch (e: any) {
-      console.error("onContinueWithGoogle", e?.message || e);
-      Alert.alert("Google sign-in failed", e?.message || "Please try again.");
-    } finally {
-      setSaving(false);
-    }
-  }, [answers]);
+    Alert.alert("Unavailable", "Google sign-in is coming soon.");
+  }, []);
 
   const renderInput = () => {
     if (isAccountStep) {

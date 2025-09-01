@@ -177,6 +177,32 @@ function useDigmStoreImpl() {
       }
     }
 
+    // journal entries
+    {
+      console.log("[fetchAll] Querying journal_entries table for user:", uid);
+      const { data, error } = await supabase
+        .from("journal_entries")
+        .select("*")
+        .eq("user_id", uid)
+        .order("created_at", { ascending: false });
+      if (error) {
+        console.error("[fetchAll] Journal entries query error:", error);
+      } else {
+        const mapped: JournalEntry[] = (data ?? []).map((j: any) => ({
+          id: j.id,
+          date: j.created_at,
+          content: j.content ?? "",
+          accomplishments: j.accomplishments ?? "",
+          blockers: j.blockers ?? "",
+          gratitude: j.gratitude ?? "",
+          valueServed: j.value_served ?? "",
+          xpEarned: j.xp_earned ?? 10,
+        }));
+        setJournalEntries(mapped);
+        console.log("[fetchAll] journal entries:", mapped.length);
+      }
+    }
+
     // tasks (then link into goals + recompute goal progress)
     {
       console.log("[fetchAll] Querying tasks table for user:", uid);

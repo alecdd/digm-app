@@ -1,7 +1,9 @@
 import createContextHook from "@nkzw/create-context-hook";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { mockCoachMessages, coachSuggestions } from "@/mocks/data";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useDigmStore } from "@/hooks/useDigmStore";
+import { supabase } from "@/lib/supabase";
 
 interface Message {
   id: string;
@@ -12,45 +14,125 @@ interface Message {
 
 export const [CoachProvider, useCoachStore] = createContextHook(() => {
   const [messages, setMessages] = useState<Message[]>([]);
+  const { userId } = useDigmStore();
+  const storageKey = useMemo(() => `coach_messages_${userId ?? "guest"}`, [userId]);
+  const [threadId, setThreadId] = useState<string | null>(null);
   
-  // Initialize messages from mock data
+  // Ensure there is a thread for this user and return its id
+  const ensureThread = useCallback(async (): Promise<string | null> => {
+    if (!userId) return null;
+    if (threadId) return threadId;
+    try {
+      const { data: existing } = await supabase
+        .from("coach_threads")
+        .select("id")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (existing?.id) {
+        setThreadId(existing.id);
+        return existing.id;
+      }
+      const { data: created, error } = await supabase
+        .from("coach_threads")
+        .insert({ user_id: userId })
+        .select("id")
+        .maybeSingle();
+      if (error) throw error;
+      setThreadId(created!.id);
+      return created!.id;
+    } catch (e) {
+      console.error("ensureThread failed:", e);
+      return null;
+    }
+  }, [userId, threadId]);
+  
+  // Load messages for the current user (prefer server, fallback to cache/defaults)
   useEffect(() => {
-    // Convert mock data to match Message type
-    const typedMessages: Message[] = mockCoachMessages.map(msg => ({
-      ...msg,
-      sender: msg.sender as "user" | "coach"
-    }));
-    setMessages(typedMessages);
-  }, []);
+    (async () => {
+      try {
+        const tid = await ensureThread();
+        if (tid) {
+          const { data, error } = await supabase
+            .from("coach_messages")
+            .select("id, role, content, created_at")
+            .eq("thread_id", tid)
+            .order("created_at", { ascending: false })
+            .limit(50);
+          if (!error && data) {
+            const loaded: Message[] = data
+              .slice()
+              .reverse()
+              .map((r: any) => ({ id: r.id, sender: (r.role as string) === "user" ? "user" : "coach", content: r.content, timestamp: r.created_at }));
+            setMessages(loaded);
+            await AsyncStorage.setItem(storageKey, JSON.stringify(loaded));
+            return;
+          }
+        }
+        const stored = await AsyncStorage.getItem(storageKey);
+        if (stored) {
+          setMessages(JSON.parse(stored));
+          return;
+        }
+        const typedDefaults: Message[] = mockCoachMessages.map((m) => ({
+          ...m,
+          sender: m.sender as "user" | "coach",
+        }));
+        setMessages(typedDefaults);
+        await AsyncStorage.setItem(storageKey, JSON.stringify(typedDefaults));
+      } catch (e) {
+        console.error("Error initializing coach messages:", e);
+      }
+    })();
+  }, [storageKey, ensureThread]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   // Load messages from storage
   const loadMessages = useCallback(async () => {
     try {
-      const storedMessages = await AsyncStorage.getItem("coach_messages");
+      const tid = await ensureThread();
+      if (tid) {
+        const { data, error } = await supabase
+          .from("coach_messages")
+          .select("id, role, content, created_at")
+          .eq("thread_id", tid)
+          .order("created_at", { ascending: false })
+          .limit(50);
+        if (!error && data) {
+          const loaded: Message[] = data
+            .slice()
+            .reverse()
+            .map((r: any) => ({ id: r.id, sender: (r.role as string) === "user" ? "user" : "coach", content: r.content, timestamp: r.created_at }));
+          setMessages(loaded);
+          await AsyncStorage.setItem(storageKey, JSON.stringify(loaded));
+          return;
+        }
+      }
+      const storedMessages = await AsyncStorage.getItem(storageKey);
       if (storedMessages) {
         setMessages(JSON.parse(storedMessages));
       }
     } catch (error) {
       console.error("Error loading coach messages:", error);
     }
-  }, []);
+  }, [storageKey, ensureThread]);
 
   // Save messages to storage
   const saveMessages = useCallback(async (updatedMessages: Message[]) => {
     try {
-      await AsyncStorage.setItem("coach_messages", JSON.stringify(updatedMessages));
+      await AsyncStorage.setItem(storageKey, JSON.stringify(updatedMessages));
     } catch (error) {
       console.error("Error saving coach messages:", error);
     }
-  }, []);
+  }, [storageKey]);
 
   // Send a message
   const sendMessage = useCallback(async (content: string, sender: "user" | "coach" = "user") => {
     if (!content.trim()) return;
 
     const newMessage: Message = {
-      id: `msg${Date.now()}`,
+      id: `local-${Date.now()}`,
       sender,
       content,
       timestamp: new Date().toISOString(),
@@ -69,11 +151,21 @@ export const [CoachProvider, useCoachStore] = createContextHook(() => {
       return updatedMessages;
     });
     
-    // No more hardcoded AI responses - they come from the actual AI API
-    if (sender === "user") {
-      setIsLoading(false); // Don't set loading here, let the component handle it
+    // best-effort persist to Supabase
+    try {
+      const tid = await ensureThread();
+      if (tid && userId) {
+        await supabase.from("coach_messages").insert({
+          thread_id: tid,
+          user_id: userId,
+          role: sender === "user" ? "user" : "assistant",
+          content,
+        });
+      }
+    } catch (e) {
+      console.error("Failed to persist coach message:", e);
     }
-  }, [saveMessages]);
+  }, [saveMessages, ensureThread, userId]);
 
   // Get coach suggestions
   const getSuggestions = useCallback(() => {

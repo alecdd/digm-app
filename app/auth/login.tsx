@@ -121,16 +121,17 @@ export default function Login() {
         />
 
         <View style={styles.row}>
-          <TouchableOpacity style={styles.btnOutline} onPress={signInWithPassword} disabled={busy}>
-            <Text style={styles.btnOutlineText}>Sign in</Text>
+          <TouchableOpacity style={styles.btnPrimary} onPress={signInWithPassword} disabled={busy}>
+            <Text style={styles.btnPrimaryText}>Sign in</Text>
           </TouchableOpacity>
         </View>
 
+        {/*
         <View style={styles.divider} />
-
         <TouchableOpacity style={styles.btnPrimary} onPress={signInWithGoogle} disabled={busy}>
           <Text style={styles.btnPrimaryText}>Continue with Google</Text>
         </TouchableOpacity>
+        */}
 
         <Text style={styles.tip}>
           {redirectPath === "/onboarding/finish"
@@ -167,10 +168,11 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", marginTop: 12 },
   btnOutline: { flex: 1, borderWidth: 1, borderColor: colors.border, borderRadius: 10, alignItems: "center", paddingVertical: 12 },
   btnOutlineText: { color: colors.text, fontWeight: "700" },
+  btnPrimary: { backgroundColor: colors.primary, paddingVertical: 12, borderRadius: 10, alignItems: "center", flex: 1 },
+  btnPrimaryText: { color: "#fff", fontWeight: "700" },
   forgot: { alignItems: "center", marginTop: 20 },
   forgotText: { color: colors.textSecondary, textDecorationLine: "underline" },
   divider: { height: 1, backgroundColor: colors.border, marginVertical: 16 },
-  btnPrimary: { backgroundColor: colors.primary, paddingVertical: 12, borderRadius: 10, alignItems: "center" },
-  btnPrimaryText: { color: "#fff", fontWeight: "700" },
+  /* keep for future providers */
   tip: { marginTop: 12, color: colors.textSecondary, textAlign: "center" },
 });

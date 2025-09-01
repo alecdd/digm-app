@@ -123,12 +123,22 @@ export default function HomeScreen() {
     });
   }, [tasksByStatus, updateTask]);
 
-  if (loading) return <ActivityIndicator style={{ flex: 1 }} />;
+  if (loading) {
+    return (
+      <View style={styles.loadingWrap}>
+        <ActivityIndicator color={colors.primary} />
+      </View>
+    );
+  }
 
   // Safety check - ensure all required data is available before rendering
   if (!quote?.quote || !quote?.author) {
     console.log("[Home] Required data not available, showing loading");
-    return <ActivityIndicator style={{ flex: 1 }} />;
+    return (
+      <View style={styles.loadingWrap}>
+        <ActivityIndicator color={colors.primary} />
+      </View>
+    );
   }
 
   return (
@@ -156,5 +166,6 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
+  loadingWrap: { flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' },
   content: { paddingVertical: 16, paddingBottom: 32 },
 });

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { StyleSheet, Text, View, Animated, Easing, Dimensions, TouchableOpacity, Platform } from "react-native";
 import colors, { getLevelInfo, getNextLevelInfo } from "@/constants/colors";
 import LevelUpEffect from "./LevelUpEffect";
@@ -10,10 +11,12 @@ interface XPBarProps {
   level: number;
   onLevelUp?: () => void;
   compact?: boolean;
+  userId?: string;
 }
 
-export default function XPBar({ currentXP, level, onLevelUp, compact = false }: XPBarProps) {
+export default function XPBar({ currentXP, level, onLevelUp, compact = false, userId }: XPBarProps) {
   const previousLevel = useRef(level);
+  const lastSeenLevelRef = useRef<number | null>(null);
   const animatedWidth = useRef(new Animated.Value(0)).current;
   const confettiAnimated = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -32,6 +35,22 @@ export default function XPBar({ currentXP, level, onLevelUp, compact = false }: 
   const progress = Math.min((currentLevelXP / totalLevelXP) * 100, 100);
   const xpToNextLevel = nextLevelInfo.minXP - currentXP;
   const progressPercentage = Math.floor(progress);
+
+  // Load last seen level per-user to prevent replaying effect after reloads
+  useEffect(() => {
+    (async () => {
+      try {
+        if (!userId) { lastSeenLevelRef.current = level; previousLevel.current = level; return; }
+        const key = `last_level_seen_${userId}`;
+        const raw = await AsyncStorage.getItem(key);
+        const seen = raw ? Number(raw) : level;
+        lastSeenLevelRef.current = seen;
+        previousLevel.current = seen; // align baseline with last seen
+        // If current level already equals seen, ensure no effect is shown
+        if (level <= seen) setShowLevelUpEffect(false);
+      } catch {}
+    })();
+  }, [userId]);
 
   // Start animations for the progress bar and badge
   useEffect(() => {
@@ -133,7 +152,8 @@ export default function XPBar({ currentXP, level, onLevelUp, compact = false }: 
   }, [pulseAnim, badgeScaleAnim, glowOpacityAnim, shineAnim, sparkleAnim]);
 
   useEffect(() => {
-    if (level > previousLevel.current) {
+    const baseline = lastSeenLevelRef.current ?? previousLevel.current;
+    if (level > baseline) {
       console.log(`🎖️ LEVEL UP DETECTED! From level ${previousLevel.current} to ${level}`);
       
       // Trigger confetti animation
@@ -150,13 +170,21 @@ export default function XPBar({ currentXP, level, onLevelUp, compact = false }: 
           useNativeDriver: true,
         })
       ]).start();
-      
+
       // Show level up effect with priority
       console.log('🎖️ Showing level up effect with priority');
       setShowLevelUpEffect(true);
       
       onLevelUp?.();
       previousLevel.current = level;
+      // persist last seen level per-user to avoid replay after reloads
+      (async () => {
+        try {
+          if (userId) {
+            await AsyncStorage.setItem(`last_level_seen_${userId}`, String(level));
+          }
+        } catch {}
+      })();
     }
     
     Animated.timing(animatedWidth, {
@@ -165,7 +193,7 @@ export default function XPBar({ currentXP, level, onLevelUp, compact = false }: 
       easing: Easing.out(Easing.cubic),
       useNativeDriver: false,
     }).start();
-  }, [level, progress, animatedWidth, confettiAnimated, onLevelUp]);
+  }, [level, progress, animatedWidth, confettiAnimated, onLevelUp, userId]);
 
   const toggleExpanded = () => {
     console.log('XP Bar toggle clicked, current expanded:', expanded);

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert } from "react-native";
+import { ChevronRight } from "@/lib/icons";
 import { useRouter } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import colors from "@/constants/colors";
@@ -107,10 +108,13 @@ const confirmSignOut = () => {
 
   return (
     <View style={styles.screen}>
-      {/* simple header with back */}
+      {/* compact header with back */}
       <View style={styles.header}>
-       {/* <TouchableOpacity onPress={() => router.back()}><Text style={styles.back}>Back</Text></TouchableOpacity> */}
-        <View style={{ width: 48 }} />
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <ChevronRight size={22} color={colors.text} style={{ transform: [{ rotate: '180deg' }] }} />
+        </TouchableOpacity>
+        <Text style={styles.h1}>Settings</Text>
+        <View style={{ width: 22 }} />
       </View>
 
       <Text style={styles.section}>Profile</Text>
@@ -146,8 +150,8 @@ const confirmSignOut = () => {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background, padding: 16, gap: 10 },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
-  back: { color: colors.primary, fontWeight: "700" },
-  h1: { color: colors.text, fontSize: 20, fontWeight: "800" },
+  backBtn: { padding: 6 },
+  h1: { color: colors.text, fontSize: 18, fontWeight: "700" },
   section: { color: colors.textSecondary, marginTop: 12, marginBottom: 6, fontWeight: "700" },
   input: {
     minHeight: 48, borderRadius: 10, borderWidth: 1, borderColor: colors.border,

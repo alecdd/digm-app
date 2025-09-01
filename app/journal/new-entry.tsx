@@ -5,11 +5,15 @@ import {
   TextInput, 
   TouchableOpacity, 
   View,
-  SafeAreaView
+  SafeAreaView,
+  KeyboardAvoidingView,
+  ScrollView,
+  Platform
 } from "react-native";
-import { Stack, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import colors from "@/constants/colors";
 import { useDigmStore } from "@/hooks/useDigmStore";
+import { ChevronRight } from "@/lib/icons";
 
 // Global variable to store draft data outside of React lifecycle
 let globalDraft = {
@@ -21,9 +25,9 @@ let globalDraft = {
 };
 
 export default function NewJournalEntryScreen() {
-  // Temporarily comment out store to test if that's causing the issue
-  // const { addJournalEntry } = useDigmStore();
+  const { addJournalEntry } = useDigmStore();
   const router = useRouter();
+  const [saving, setSaving] = useState(false);
   
   // Use refs to maintain actual values that won't be reset
   const contentRef = useRef("");
@@ -91,44 +95,50 @@ export default function NewJournalEntryScreen() {
 
 
   const handleSave = useCallback(async () => {
+    if (saving) return;
+    setSaving(true);
+
     // Get values from global draft
     const contentToSave = globalDraft.content.trim();
     const accomplishmentsToSave = globalDraft.accomplishments.trim();
     const blockersToSave = globalDraft.blockers.trim();
     const gratitudeToSave = globalDraft.gratitude.trim();
     const valueServedToSave = globalDraft.valueServed.trim();
-    
-    if (contentToSave) {
-      // Temporarily comment out to test if store is causing the issue
-      // addJournalEntry({
-      //   date: new Date().toISOString(),
-      //   content: contentToSave,
-      //   accomplishments: accomplishmentsToSave,
-      //   blockers: blockersToSave,
-      //   gratitude: gratitudeToSave,
-      //   valueServed: valueServedToSave,
-      // });
-      
-      console.log("Would save:", { 
-        content: contentToSave, 
-        accomplishments: accomplishmentsToSave, 
-        blockers: blockersToSave, 
-        gratitude: gratitudeToSave, 
-        valueServed: valueServedToSave 
-      });
-      
-      // Clear the global draft after saving
-      globalDraft = {
-        content: "",
-        accomplishments: "",
-        blockers: "",
-        gratitude: "",
-        valueServed: ""
-      };
-      
-      router.back();
+
+    const hasAnyText =
+      contentToSave || accomplishmentsToSave || blockersToSave || gratitudeToSave || valueServedToSave;
+
+    try {
+      if (!hasAnyText) return;
+
+      const created = await addJournalEntry({
+        id: "", // ignored by store
+        date: new Date().toISOString(),
+        content: contentToSave,
+        accomplishments: accomplishmentsToSave,
+        blockers: blockersToSave,
+        gratitude: gratitudeToSave,
+        valueServed: valueServedToSave,
+        xpEarned: 10, // ignored by store; computed inside
+      } as any);
+
+      if (created) {
+        // Clear the global draft after saving
+        globalDraft = {
+          content: "",
+          accomplishments: "",
+          blockers: "",
+          gratitude: "",
+          valueServed: "",
+        };
+        router.back();
+      }
+    } catch (err) {
+      console.error("Failed to save journal entry:", err);
+    } finally {
+      setSaving(false);
     }
-  }, [router]);
+  }, [addJournalEntry, router, saving]);
 
 
 
@@ -136,22 +146,24 @@ export default function NewJournalEntryScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Stack.Screen 
-        options={{ 
-          headerShown: false,
-          presentation: 'card',
-          animation: 'slide_from_right',
-        }} 
-      />
-      
+      {/* Header */}
       <View style={styles.headerSection}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.headerSide}>
+          <ChevronRight size={24} color={colors.text} style={{ transform: [{ rotate: '180deg' }] }} />
+        </TouchableOpacity>
         <Text style={styles.pageTitle}>New Journal Entry</Text>
-        <TouchableOpacity onPress={handleSave} style={styles.saveButtonContainer}>
+        <TouchableOpacity onPress={handleSave} style={[styles.saveButtonContainer, styles.headerSide]}>
           <Text style={styles.saveButton}>Save</Text>
         </TouchableOpacity>
       </View>
-      
-      <View style={styles.contentContainer}>
+
+      {/* Content */}
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={80}
+      >
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <View style={styles.section}>
           <Text style={styles.label}>Journal Entry</Text>
           <TextInput
@@ -249,7 +261,8 @@ export default function NewJournalEntryScreen() {
         <View style={styles.xpNotice}>
           <Text style={styles.xpText}>+10 XP for completing this entry</Text>
         </View>
-      </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -259,10 +272,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  flex: { flex: 1 },
 
-  contentContainer: {
-    flex: 1,
-    paddingBottom: 100,
+  scrollContent: {
+    paddingBottom: 120,
   },
   headerSection: {
     flexDirection: 'row',
@@ -274,10 +287,17 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
+  headerSide: {
+    minWidth: 64,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   pageTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     color: colors.text,
+    flex: 1,
+    textAlign: 'center',
   },
   saveButtonContainer: {
     backgroundColor: colors.primary,

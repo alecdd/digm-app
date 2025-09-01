@@ -132,10 +132,12 @@ export default function CreateAccountStep({
       {/* Divider */}
       <View style={styles.divider} />
 
-      {/* Google OAuth — reuse your login flow */}
-      <TouchableOpacity style={styles.btnPrimary} onPress={onContinueWithGoogle}>
-        <Text style={styles.btnPrimaryText}>Continue with Google</Text>
-      </TouchableOpacity>
+      {/** Google OAuth disabled for v1 — re-enable in v2 */}
+      {false && (
+        <TouchableOpacity style={styles.btnPrimary} onPress={onContinueWithGoogle}>
+          <Text style={styles.btnPrimaryText}>Continue with Google</Text>
+        </TouchableOpacity>
+      )}
 
       {/* Helper text */}
       {!isValid && (

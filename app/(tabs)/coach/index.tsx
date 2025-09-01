@@ -14,7 +14,9 @@ import {
   SafeAreaView,
   Keyboard,
 } from "react-native";
-import { Send, Brain, RefreshCw } from "@/lib/icons";
+import DigmLogo from "@/components/DigmLogo";
+import { Send, Brain } from "@/lib/icons";
+import { useFocusEffect } from "@react-navigation/native";
 import colors from "@/constants/colors";
 import { useCoachStore } from "@/hooks/useCoachStore";
 import { useDigmStore } from "@/hooks/useDigmStore";
@@ -26,11 +28,13 @@ import GoalCompletionEffect from "@/components/GoalCompletionEffect";
 export default function CoachScreen() {
   // Get the store once, then use its fields
   const store = useCoachStore();
-  const { completedGoal, clearCompletedGoal, userId } = useDigmStore();
+  const { completedGoal, clearCompletedGoal, userId, goals, tasks, journalEntries } = useDigmStore();
   const { queryCoach, generateEmbeddings, loading: aiLoading, error: aiError } = useAICoach();
 
   const [inputText, setInputText] = useState("");
-  const [isGeneratingEmbeddings, setIsGeneratingEmbeddings] = useState(false);
+  // Auto-reindex throttling refs
+  const lastIndexedAtRef = useRef<number>(0);
+  const lastCountsRef = useRef<{ g: number; t: number; j: number } | null>(null);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const [isInputFocused, setIsInputFocused] = useState(false);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
@@ -86,28 +90,21 @@ export default function CoachScreen() {
     setInputText(suggestion);
   }, []);
 
-  const handleGenerateEmbeddings = useCallback(async () => {
-    if (!userId) {
-      Alert.alert("Error", "User ID not found");
-      return;
-    }
-
-    setIsGeneratingEmbeddings(true);
-    try {
-      const result = await generateEmbeddings(userId);
-      if (result) {
-        Alert.alert(
-          "Success", 
-          `Generated ${result.embeddings_generated} embeddings for your data. This will improve AI responses!`
-        );
-      }
-    } catch (error) {
-      console.error("Failed to generate embeddings:", error);
-      Alert.alert("Error", "Failed to generate embeddings. Please try again.");
-    } finally {
-      setIsGeneratingEmbeddings(false);
-    }
-  }, [userId, generateEmbeddings]);
+  // Auto re-index embeddings when data meaningfully changes (throttled)
+  useEffect(() => {
+    if (!userId) return;
+    const now = Date.now();
+    const throttleMs = 10 * 60 * 1000; // 10 minutes
+    const counts = { g: goals?.length ?? 0, t: tasks?.length ?? 0, j: journalEntries?.length ?? 0 };
+    const countsChanged = JSON.stringify(counts) !== JSON.stringify(lastCountsRef.current);
+    const throttled = now - lastIndexedAtRef.current < throttleMs;
+    if (!countsChanged || throttled) return;
+    lastCountsRef.current = counts;
+    lastIndexedAtRef.current = now;
+    (async () => {
+      try { await generateEmbeddings(userId); } catch (e) { console.log("auto-reindex failed", e); }
+    })();
+  }, [userId, goals?.length, tasks?.length, journalEntries?.length, generateEmbeddings]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -118,6 +115,16 @@ export default function CoachScreen() {
       return () => clearTimeout(t);
     }
   }, [messages]);
+
+  // Ensure we scroll to bottom whenever the Coach tab gains focus
+  useFocusEffect(
+    useCallback(() => {
+      const t = setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+      return () => clearTimeout(t);
+    }, [messages.length])
+  );
 
   // Handle keyboard events for dynamic input sizing
   useEffect(() => {
@@ -162,26 +169,10 @@ export default function CoachScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
     >
-      {/* AI Coach Header */}
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <Brain color={colors.primary} size={24} />
-          <Text style={styles.headerTitle}>AI Coach</Text>
-        </View>
-        <TouchableOpacity
-          style={[styles.embeddingButton, isGeneratingEmbeddings && styles.embeddingButtonDisabled]}
-          onPress={handleGenerateEmbeddings}
-          disabled={isGeneratingEmbeddings}
-        >
-          <RefreshCw 
-            color={colors.text} 
-            size={16} 
-            style={isGeneratingEmbeddings ? styles.rotating : undefined}
-          />
-          <Text style={styles.embeddingButtonText}>
-            {isGeneratingEmbeddings ? "Generating..." : "Update AI"}
-          </Text>
-        </TouchableOpacity>
+      {/* Compact centered header */}
+      <View style={styles.controlRow}>
+        <Brain color={colors.primary} size={18} />
+        <Text style={styles.controlTitle}>Coach DIGM</Text>
       </View>
 
       <FlatList
@@ -201,6 +192,9 @@ export default function CoachScreen() {
         keyboardDismissMode="interactive"
         onScroll={handleScroll}
         scrollEventThrottle={16}
+        ListFooterComponent={(isLoading || aiLoading) ? (
+          <ChatMessage content="__typing__" isUser={false} timestamp={new Date().toISOString()} />
+        ) : null}
       />
 
       {/* Floating Scroll to Bottom Button */}
@@ -235,7 +229,7 @@ export default function CoachScreen() {
       <View style={[
         styles.inputContainer,
         { 
-          paddingBottom: isKeyboardOpen && isInputFocused ? 120 : 12
+          paddingBottom: isKeyboardOpen && isInputFocused ? 65 : 12
         }
       ]}>
         <TextInput
@@ -277,13 +271,7 @@ export default function CoachScreen() {
         </TouchableOpacity>
       </View>
 
-      {(isLoading || aiLoading) && (
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>
-            {aiLoading ? "AI Coach is thinking..." : "Coach is typing..."}
-          </Text>
-        </View>
-      )}
+      {/* (typing indicator rendered by FlatList footer; remove duplicates) */}
 
       {/* Goal Completion Effect */}
       {completedGoal && (
@@ -299,26 +287,8 @@ export default function CoachScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    backgroundColor: colors.card,
-  },
-  headerContent: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: colors.text,
-    marginLeft: 8,
-  },
+  controlRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8 },
+  controlTitle: { fontSize: 18, fontWeight: '700', color: colors.text, marginLeft: 6 },
   embeddingButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -369,8 +339,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     color: colors.text,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    shadowColor: colors.primary,
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 0 },
     fontSize: 16,
     lineHeight: 20,
   },
@@ -384,22 +358,9 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   sendButtonDisabled: { backgroundColor: colors.inactive },
-  loadingContainer: {
-    position: "absolute",
-    bottom: 70,
-    left: 0,
-    right: 0,
-    alignItems: "center",
-    paddingVertical: 4,
-  },
-  loadingText: {
-    color: colors.textSecondary,
-    fontSize: 14,
-    backgroundColor: colors.card,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
+  footerTypingBubble: { alignSelf: 'flex-start', marginLeft: 16, marginBottom: 8, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: colors.border },
+  dotsRow: { flexDirection: 'row', gap: 4 },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.textSecondary },
   scrollToBottomButton: {
     position: 'absolute',
     right: 20,

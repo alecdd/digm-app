@@ -1,5 +1,5 @@
 // app/_layout.tsx
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaView, View, StyleSheet } from "react-native";
 import { StatusBar } from "expo-status-bar";
@@ -9,11 +9,12 @@ import colors from "@/constants/colors";
 import DigmHeader from "@/components/DigmHeader";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { trpc, trpcClient } from "@/lib/trpc";
-import { DigmProvider } from "@/hooks/useDigmStore";
+import { DigmProvider, useDigmStore } from "@/hooks/useDigmStore";
 import { CoachProvider } from "@/hooks/useCoachStore";
 import { useAuthListener } from "@/hooks/useAuthListener";
 import { useSupabaseDeepLink } from "@/hooks/useSupabaseDeepLink";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import AnimatedSplash from "@/components/AnimatedSplash";
 
 try { 
   SplashScreen.preventAutoHideAsync(); 
@@ -31,6 +32,8 @@ const styles = StyleSheet.create({
 function AppContent() {
   const navState = useRootNavigationState();
   const hiddenRef = useRef(false);
+  const [splashVisible, setSplashVisible] = useState(true);
+  const { loading, reloading } = useDigmStore();
   
   // Hooks moved to main component to avoid Rules of Hooks violations
   useAuthListener();
@@ -40,12 +43,14 @@ function AppContent() {
     if (hiddenRef.current) return;
     if (navState?.key) {
       hiddenRef.current = true;
+      setSplashVisible(false);
       SplashScreen.hideAsync().catch(() => {});
       return;
     }
     const t = setTimeout(() => {
       if (!hiddenRef.current) {
         hiddenRef.current = true;
+        setSplashVisible(false);
         SplashScreen.hideAsync().catch(() => {});
       }
     }, 2500);
@@ -57,6 +62,7 @@ function AppContent() {
       <View style={styles.container}>
         <StatusBar style="light" />
         <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+          <AnimatedSplash visible={splashVisible || loading || reloading} />
           <DigmHeader />
           <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
             <Stack.Screen name="(tabs)" />

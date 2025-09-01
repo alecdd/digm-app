@@ -5,9 +5,7 @@ export default function CoachStackLayout() {
   return (
     <Stack
       screenOptions={{
-        headerShown: true,
-        headerTitle: "Coach",
-        headerTitleAlign: "center",
+        headerShown: false,
       }}
     >
       {/* Main chat screen */}

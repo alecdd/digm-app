@@ -7,7 +7,7 @@ import { useDigmStore } from "@/hooks/useDigmStore";
 import XPBar from "@/components/XPBar";
 
 export default function DigmHeader() {
-  const { userProfile } = useDigmStore();
+  const { userProfile, userId } = useDigmStore();
   const sparkleAnim = React.useRef(new Animated.Value(0)).current;
   
   React.useEffect(() => {
@@ -54,7 +54,8 @@ export default function DigmHeader() {
         <XPBar 
           currentXP={userProfile.xp} 
           level={userProfile.level} 
-          compact={true} 
+          compact={true}
+          userId={userId ?? undefined}
         />
       </View>
     </View>

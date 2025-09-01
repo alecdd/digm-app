@@ -1,0 +1,22 @@
+{
+  "build": {
+    "development": {
+      "ios": {
+        "developmentClient": true,
+        "distribution": "internal"
+      }
+    },
+    "production": {
+      "ios": {
+        "autoIncrement": true
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "ascAppId": ""
+      }
+    }
+  }
+}

@@ -7,19 +7,31 @@ import * as SecureStore from "expo-secure-store";
 const sanitize = (v: string) =>
   v.replace(/["'`]/g, "").replace(/[\s\u200B-\u200D\uFEFF]/g, "");
 
-let supabaseUrl = sanitize(process.env.EXPO_PUBLIC_SUPABASE_URL ?? "");
+const normalizeSupabaseUrl = (raw: string) => {
+  let value = sanitize(raw || "");
+  if (!value) return value;
+
+  // If only the project ref was provided (no dots), assume *.supabase.co
+  if (!value.includes(".")) {
+    value = `${value}.supabase.co`;
+  }
+  // Ensure protocol
+  try {
+    // eslint-disable-next-line no-new
+    new URL(value);
+  } catch {
+    value = `https://${value}`;
+  }
+  return value;
+};
+
+let supabaseUrl = normalizeSupabaseUrl(process.env.EXPO_PUBLIC_SUPABASE_URL ?? "");
 let supabaseAnonKey = sanitize(process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "");
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.error("[supabase] Missing EXPO_PUBLIC_SUPABASE_URL or EXPO_PUBLIC_SUPABASE_ANON_KEY");
 }
-try {
-  // ensure https://
-  // eslint-disable-next-line no-new
-  new URL(supabaseUrl);
-} catch {
-  if (supabaseUrl && !/^https?:\/\//.test(supabaseUrl)) supabaseUrl = `https://${supabaseUrl}`;
-}
+// supabaseUrl is already normalized above
 
 console.log("[supabase] Init", {
   urlStartsWith: supabaseUrl.slice(0, 24),
@@ -37,8 +49,8 @@ const nativeStorage =
       } as any);
 
 export const supabase = createClient(
-  process.env.EXPO_PUBLIC_SUPABASE_URL!,       // ← revert to raw envs
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!,  // ← revert to raw envs
+  supabaseUrl!,
+  supabaseAnonKey!,
   {
     auth:
       Platform.OS === "web"

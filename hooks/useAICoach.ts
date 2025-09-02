@@ -33,11 +33,19 @@ export function useAICoach() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // Get the backend URL from environment or use local IP for development
+  // Resolve backend URL from env; fall back to local during dev
   const getBackendUrl = () => {
-    // In production, this would be your deployed backend URL
-    // For development, use your local IP address so physical devices can connect
-    return __DEV__ ? 'http://192.168.1.239:8000' : 'https://your-production-backend.com';
+    const envUrl =
+      process.env.EXPO_PUBLIC_COACH_API_BASE ||
+      process.env.EXPO_PUBLIC_RORK_API_BASE_URL ||
+      '';
+
+    if (envUrl) return envUrl.replace(/\/$/, '');
+
+    // Fallback for local development when env is not set
+    if (__DEV__) return 'http://192.168.1.239:8000';
+
+    throw new Error('Coach API base URL is not configured');
   };
 
   const queryCoach = useCallback(async (message: string, chatHistory?: Array<{message: string, response: string, timestamp: string}>): Promise<CoachResponse | null> => {
@@ -53,6 +61,9 @@ export function useAICoach() {
       }
 
       const backendUrl = getBackendUrl();
+      console.log('🔗 Coach API URL:', `${backendUrl}/api/coach/query`);
+      console.log('🔑 Token length:', session.access_token.length);
+      
       const response = await fetch(`${backendUrl}/api/coach/query`, {
         method: 'POST',
         headers: {
@@ -96,6 +107,9 @@ export function useAICoach() {
       }
 
       const backendUrl = getBackendUrl();
+      console.log('🔗 Embeddings API URL:', `${backendUrl}/api/embeddings/generate`);
+      console.log('🔑 Token length:', session.access_token.length);
+      
       const response = await fetch(`${backendUrl}/api/embeddings/generate`, {
         method: 'POST',
         headers: {

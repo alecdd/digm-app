@@ -77,8 +77,8 @@ export default function Login() {
       await supabase.auth.resetPasswordForEmail(email, {
         redirectTo:
           Platform.OS === "web"
-            ? `${window.location.origin}/auth/login`
-            : Linking.createURL("auth/login"),
+            ? `${window.location.origin}/auth/reset`
+            : Linking.createURL("auth/reset"),
       });
       Alert.alert("Email sent", "Please check your inbox (and spam) to reset your password.");
     } catch (e: any) {

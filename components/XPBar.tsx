@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { StyleSheet, Text, View, Animated, Easing, Dimensions, TouchableOpacity, Platform } from "react-native";
+import { StyleSheet, Text, View, Animated, Easing, Dimensions, TouchableOpacity, Platform, Modal, TouchableWithoutFeedback } from "react-native";
 import colors, { getLevelInfo, getNextLevelInfo } from "@/constants/colors";
 import LevelUpEffect from "./LevelUpEffect";
 import { Award, Zap, TrendingUp, ChevronUp, Sparkles } from "lucide-react-native";
@@ -394,31 +394,45 @@ export default function XPBar({ currentXP, level, onLevelUp, compact = false, us
         </View>
       </View>
       
-      {expanded && compact && (
-        <View style={styles.expandedDetails}>
-          <TouchableOpacity 
-            style={styles.closeButton} 
-            onPress={() => setExpanded(false)}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.closeButtonText}>×</Text>
-          </TouchableOpacity>
-          <View style={styles.expandedRow}>
-            <Text style={styles.expandedLabel}>Current Level:</Text>
-            <Text style={styles.expandedValue}>Level {level}</Text>
-          </View>
-          <View style={styles.expandedRow}>
-            <Text style={styles.expandedLabel}>Progress:</Text>
-            <Text style={styles.expandedValue}>{currentLevelXP}/{totalLevelXP} XP ({progressPercentage}%)</Text>
-          </View>
-          <View style={styles.expandedRow}>
-            <Text style={styles.expandedLabel}>Next Level:</Text>
-            <View style={styles.nextLevelContainer}>
-              <Zap color={colors.accent} size={14} style={styles.zapIcon} />
-              <Text style={styles.nextLevelText}>{xpToNextLevel > 0 ? `${xpToNextLevel} XP to Level ${level + 1}` : 'Max Level!'}</Text>
+      {compact && (
+        <Modal
+          visible={expanded}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setExpanded(false)}
+        >
+          <View style={styles.modalRoot}>
+            <TouchableWithoutFeedback onPress={() => setExpanded(false)}>
+              <View style={styles.modalBackdrop} />
+            </TouchableWithoutFeedback>
+            <View style={styles.modalPositioner}>
+              <View style={[styles.expandedDetails, styles.expandedDetailsModal]}>
+                <TouchableOpacity 
+                  style={styles.closeButton} 
+                  onPress={() => setExpanded(false)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.closeButtonText}>×</Text>
+                </TouchableOpacity>
+                <View style={styles.expandedRow}>
+                  <Text style={styles.expandedLabel}>Current Level:</Text>
+                  <Text style={styles.expandedValue}>Level {level}</Text>
+                </View>
+                <View style={styles.expandedRow}>
+                  <Text style={styles.expandedLabel}>Progress:</Text>
+                  <Text style={styles.expandedValue}>{currentLevelXP}/{totalLevelXP} XP ({progressPercentage}%)</Text>
+                </View>
+                <View style={styles.expandedRow}>
+                  <Text style={styles.expandedLabel}>Next Level:</Text>
+                  <View style={styles.nextLevelContainer}>
+                    <Zap color={colors.accent} size={14} style={styles.zapIcon} />
+                    <Text style={styles.nextLevelText}>{xpToNextLevel > 0 ? `${xpToNextLevel} XP to Level ${level + 1}` : 'Max Level!'}</Text>
+                  </View>
+                </View>
+              </View>
             </View>
           </View>
-        </View>
+        </Modal>
       )}
       
       {/* Small level up indicator */}

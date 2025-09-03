@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert } from "react-native";
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert, ScrollView } from "react-native";
 import { ChevronRight } from "@/lib/icons";
 import { useRouter } from "expo-router";
 import { supabase } from "@/lib/supabase";
@@ -15,12 +15,15 @@ export default function SettingsScreen() {
   const [firstName, setFirstName] = useState("");
   const [lastName,  setLastName]  = useState("");
   const [email,     setEmail]     = useState("");
-  const [password,  setPassword]  = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const store = useDigmStore();
   const SUPPORT_URL = "https://digmapp.com";
   const FAQ_URL     = "https://digmapp.com";
   const ABOUT_URL   = "https://digmapp.com";
+  const FEEDBACK_URL = "https://docs.google.com/forms/d/1_N2y_uTiReRoZRgi0BiVQKtjLn-rC6QN0tUhZpzvAvM/edit";
 
 
   async function openInApp(url: string) {
@@ -51,6 +54,14 @@ export default function SettingsScreen() {
     })();
   }, []);
 
+  const passwordMeetsPolicy = (pw: string) => {
+    // Simple policy: at least 8 chars, at least one letter and one number
+    if (pw.length < 8) return false;
+    if (!/[A-Za-z]/.test(pw)) return false;
+    if (!/\d/.test(pw)) return false;
+    return true;
+  };
+
   const saveProfile = async () => {
     try {
       setBusy(true);
@@ -72,9 +83,36 @@ export default function SettingsScreen() {
         if (eErr) throw eErr;
         Alert.alert("Verify email", "Check your inbox to confirm the new address.");
       }
-      if (password) {
-        const { error: pwErr } = await supabase.auth.updateUser({ password });
+
+      // Handle password change flow when any of the fields are provided
+      const wantsPasswordChange = !!(currentPassword || newPassword || confirmNewPassword);
+      if (wantsPasswordChange) {
+        if (!currentPassword || !newPassword || !confirmNewPassword) {
+          throw new Error("Fill out current, new, and confirm password.");
+        }
+        if (!passwordMeetsPolicy(newPassword)) {
+          throw new Error("New password must be 8+ chars and include letters and numbers.");
+        }
+        if (newPassword !== confirmNewPassword) {
+          throw new Error("Confirm password must match new password.");
+        }
+
+        // Verify current password by signing in
+        const signInEmail = email || (user.email ?? "");
+        const { error: verifyErr } = await supabase.auth.signInWithPassword({
+          email: signInEmail,
+          password: currentPassword,
+        });
+        if (verifyErr) {
+          throw new Error("Current password is incorrect.");
+        }
+
+        const { error: pwErr } = await supabase.auth.updateUser({ password: newPassword });
         if (pwErr) throw pwErr;
+        // Clear local password fields after success
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmNewPassword("");
       }
 
       Alert.alert("Saved", "Your profile has been updated.");
@@ -117,42 +155,61 @@ const confirmSignOut = () => {
         <View style={{ width: 22 }} />
       </View>
 
-      <Text style={styles.section}>Profile</Text>
-      <TextInput style={styles.input} placeholder="First name" value={firstName} onChangeText={setFirstName} placeholderTextColor={colors.textSecondary}/>
-      <TextInput style={styles.input} placeholder="Last name"  value={lastName}  onChangeText={setLastName}  placeholderTextColor={colors.textSecondary}/>
-      <TextInput style={styles.input} placeholder="Email"      value={email}     onChangeText={setEmail}     autoCapitalize="none" keyboardType="email-address" placeholderTextColor={colors.textSecondary}/>
-      <TextInput style={styles.input} placeholder="New password" value={password} onChangeText={setPassword} secureTextEntry placeholderTextColor={colors.textSecondary}/>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Text style={styles.section}>Profile</Text>
+        <View style={styles.group}>
+          <TextInput style={styles.input} placeholder="First name" value={firstName} onChangeText={setFirstName} placeholderTextColor={colors.textSecondary}/>
+          <TextInput style={styles.input} placeholder="Last name"  value={lastName}  onChangeText={setLastName}  placeholderTextColor={colors.textSecondary}/>
+          <TextInput style={styles.input} placeholder="Email"      value={email}     onChangeText={setEmail}     autoCapitalize="none" keyboardType="email-address" placeholderTextColor={colors.textSecondary}/>
+        </View>
 
-      <TouchableOpacity style={[styles.btn, styles.primary]} onPress={saveProfile} disabled={busy}>
-        <Text style={styles.primaryText}>{busy ? "Saving..." : "Save changes"}</Text>
-      </TouchableOpacity>
+        <Text style={styles.section}>Change Password</Text>
+        <View style={styles.group}>
+          <TextInput style={styles.input} placeholder="Current password" value={currentPassword} onChangeText={setCurrentPassword} secureTextEntry placeholderTextColor={colors.textSecondary}/>
+          <TextInput style={styles.input} placeholder="New password" value={newPassword} onChangeText={setNewPassword} secureTextEntry placeholderTextColor={colors.textSecondary}/>
+          <TextInput style={styles.input} placeholder="Confirm new password" value={confirmNewPassword} onChangeText={setConfirmNewPassword} secureTextEntry placeholderTextColor={colors.textSecondary}/>
+        </View>
 
-      <TouchableOpacity style={styles.row}><Text style={styles.rowText}>Notifications</Text></TouchableOpacity>
-      <TouchableOpacity style={styles.row} onPress={() => openInApp(SUPPORT_URL)}>
-        <Text style={styles.rowText}>Support</Text>
-      </TouchableOpacity>
+        <TouchableOpacity style={[styles.btn, styles.primary]} onPress={saveProfile} disabled={busy}>
+          <Text style={styles.primaryText}>{busy ? "Saving..." : "Save changes"}</Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity style={styles.row} onPress={() => openInApp(FAQ_URL)}>
-        <Text style={styles.rowText}>FAQ</Text>
-      </TouchableOpacity>
+        <TouchableOpacity style={styles.row}><Text style={styles.rowText}>Notifications</Text></TouchableOpacity>
+        <TouchableOpacity style={styles.row} onPress={() => openInApp(SUPPORT_URL)}>
+          <Text style={styles.rowText}>Support</Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity style={styles.row} onPress={() => openInApp(ABOUT_URL)}>
-        <Text style={styles.rowText}>About</Text>
-      </TouchableOpacity>
+        <TouchableOpacity style={styles.row} onPress={() => openInApp(FAQ_URL)}>
+          <Text style={styles.rowText}>FAQ</Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity style={[styles.btn, styles.ghost]} onPress={confirmSignOut} disabled={busy}>
-        <Text style={styles.ghostText}>{busy ? "Signing out…" : "Sign Out"}</Text>
-      </TouchableOpacity>
+        <TouchableOpacity style={styles.row} onPress={() => openInApp(ABOUT_URL)}>
+          <Text style={styles.rowText}>About</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.row} onPress={() => openInApp(FEEDBACK_URL)}>
+          <Text style={styles.rowText}>Feedback</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={[styles.btn, styles.ghost]} onPress={confirmSignOut} disabled={busy}>
+          <Text style={styles.ghostText}>{busy ? "Signing out…" : "Sign Out"}</Text>
+        </TouchableOpacity>
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background, padding: 16, gap: 10 },
+  screen: { flex: 1, backgroundColor: colors.background, paddingHorizontal: 16, gap: 10 },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
   backBtn: { padding: 6 },
   h1: { color: colors.text, fontSize: 18, fontWeight: "700" },
   section: { color: colors.textSecondary, marginTop: 12, marginBottom: 6, fontWeight: "700" },
+  scrollContent: { paddingBottom: 32 },
+  group: { gap: 10 },
   input: {
     minHeight: 48, borderRadius: 10, borderWidth: 1, borderColor: colors.border,
     paddingHorizontal: 12, paddingVertical: 10, color: colors.text, backgroundColor: colors.cardLight

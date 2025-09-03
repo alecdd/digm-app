@@ -1,4 +1,5 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, Request
+from fastapi.responses import RedirectResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -99,6 +100,25 @@ async def root():
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "timestamp": "2024-01-01T00:00:00Z"}
+
+# Auth link redirectors (password reset, etc.)
+@app.get("/auth/reset")
+async def redirect_reset(request: Request):
+    # Preserve all query params (code/access_token/refresh_token/type)
+    query = request.url.query
+    # Prefer full base if provided, e.g., "exp://192.168.1.239:8081/--"
+    deep_link_base = os.getenv("APP_DEEP_LINK_BASE")
+    app_scheme = os.getenv("APP_SCHEME", "digm")
+
+    if deep_link_base:
+        base = deep_link_base.rstrip("/")
+        target = f"{base}/auth/reset"
+    else:
+        target = f"{app_scheme}://auth/reset"
+
+    if query:
+        target = f"{target}?{query}"
+    return RedirectResponse(url=target, status_code=302)
 
 # RAG Coach endpoint
 @app.post("/api/coach/query", response_model=CoachResponse)

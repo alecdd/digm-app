@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 
 export default function ResetPasswordScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ code?: string; access_token?: string; refresh_token?: string; type?: string }>();
+  const params = useLocalSearchParams<{ code?: string; access_token?: string; refresh_token?: string; type?: string; token_hash?: string }>();
   const [pw1, setPw1] = useState("");
   const [pw2, setPw2] = useState("");
   const [busy, setBusy] = useState(false);
@@ -42,11 +42,14 @@ export default function ResetPasswordScreen() {
   };
 
   useEffect(() => {
-    // For native PKCE flow, Supabase sends a `code` which must be exchanged for a session
+    // Handle various Supabase link formats: token_hash (recovery), PKCE code, or access/refresh tokens
     (async () => {
       try {
-        if (params?.code) {
-          const { error } = await supabase.auth.exchangeCodeForSession({ code: String(params.code) });
+        if (params?.token_hash && params?.type === 'recovery') {
+          const { error } = await supabase.auth.verifyOtp({ type: 'recovery', token_hash: String(params.token_hash) });
+          if (error) throw error;
+        } else if (params?.code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(String(params.code));
           if (error) throw error;
         } else if (params?.access_token && params?.refresh_token) {
           // Non-PKCE fallback
@@ -62,7 +65,7 @@ export default function ResetPasswordScreen() {
         setReady(true);
       }
     })();
-  }, [params?.code, params?.access_token, params?.refresh_token]);
+  }, [params?.token_hash, params?.type, params?.code, params?.access_token, params?.refresh_token]);
 
   if (!ready) {
     return (

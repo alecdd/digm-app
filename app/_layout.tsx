@@ -36,6 +36,7 @@ function AppContent() {
   const [splashVisible, setSplashVisible] = useState(true);
   const { loading, reloading } = useDigmStore();
   const [welcome, setWelcome] = useState<{ show: boolean; url: string } | null>(null);
+  const [splashHardTimeout, setSplashHardTimeout] = useState(false);
   
   // Hooks moved to main component to avoid Rules of Hooks violations
   useAuthListener();
@@ -67,12 +68,18 @@ function AppContent() {
     return () => clearTimeout(t);
   }, [navState?.key]);
 
+  // Hard stop the splash after a max duration to avoid rare stuck-loading states
+  useEffect(() => {
+    const t = setTimeout(() => setSplashHardTimeout(true), 4500);
+    return () => clearTimeout(t);
+  }, []);
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <View style={styles.container}>
         <StatusBar style="light" />
         <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-          <AnimatedSplash visible={splashVisible || loading || reloading} />
+          <AnimatedSplash visible={!splashHardTimeout && (splashVisible || loading || reloading)} />
           {welcome?.show ? (
             <WelcomeVideoModal
               visible
@@ -92,8 +99,6 @@ function AppContent() {
             <Stack.Screen name="onboarding/welcome" options={{ headerShown: false }} />
             <Stack.Screen name="onboarding/finish" options={{ headerShown: false }} />
             <Stack.Screen name="auth/login" options={{ headerShown: false }} />
-            <Stack.Screen name="journal/new-entry" options={{ headerShown: true, title: "New Journal Entry", presentation: "modal" }} />
-            <Stack.Screen name="journal/entry/[id]" options={{ headerShown: true, title: "Journal Entry" }} />
           </Stack>
         </SafeAreaView>
       </View>

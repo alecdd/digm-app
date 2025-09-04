@@ -15,6 +15,7 @@ import { useAuthListener } from "@/hooks/useAuthListener";
 import { useSupabaseDeepLink } from "@/hooks/useSupabaseDeepLink";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import AnimatedSplash from "@/components/AnimatedSplash";
+import WelcomeVideoModal from "@/components/WelcomeVideoModal";
 
 try { 
   SplashScreen.preventAutoHideAsync(); 
@@ -34,10 +35,19 @@ function AppContent() {
   const hiddenRef = useRef(false);
   const [splashVisible, setSplashVisible] = useState(true);
   const { loading, reloading } = useDigmStore();
+  const [welcome, setWelcome] = useState<{ show: boolean; url: string } | null>(null);
   
   // Hooks moved to main component to avoid Rules of Hooks violations
   useAuthListener();
   useSupabaseDeepLink();
+
+  useEffect(() => {
+    // Provide a function for the auth listener to request showing the modal
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (global as any).__SHOW_WELCOME__ = (url: string) => {
+      setWelcome({ show: true, url });
+    };
+  }, []);
 
   useEffect(() => {
     if (hiddenRef.current) return;
@@ -63,6 +73,17 @@ function AppContent() {
         <StatusBar style="light" />
         <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
           <AnimatedSplash visible={splashVisible || loading || reloading} />
+          {welcome?.show ? (
+            <WelcomeVideoModal
+              visible
+              sourceUrl={welcome.url}
+              onClose={async (mark) => {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                await (global as any).__WELCOME_ON_CLOSE__?.(mark);
+                setWelcome(null);
+              }}
+            />
+          ) : null}
           <DigmHeader />
           <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
             <Stack.Screen name="(tabs)" />

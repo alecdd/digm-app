@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, Platform,
 } from "react-native";
@@ -20,8 +20,14 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const redirectedRef = useRef(false);
 
-  const goAfterLogin = () => router.replace(redirectPath as Href);
+  const goAfterLogin = () => {
+    if (redirectedRef.current) return;
+    redirectedRef.current = true;
+    router.replace(redirectPath as Href);
+  };
 
   const signInWithPassword = async () => {
     if (!email || !password) {
@@ -30,6 +36,11 @@ export default function Login() {
     }
     try {
       setBusy(true);
+      setErrorMsg(null);
+      
+      // Clear any existing session to avoid conflicts
+      await supabase.auth.signOut({ scope: 'global' });
+      
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
         const msg = (error.message || "").toLowerCase();
@@ -37,12 +48,24 @@ export default function Login() {
           Alert.alert("Confirm your email", "Check your inbox, then sign in again.");
           return;
         }
-        Alert.alert("Sign-in failed", error.message);
+        setErrorMsg(error.message);
         return;
       }
-      goAfterLogin();
+      // Wait for session/user to be available, then navigate
+      const start = Date.now();
+      while (Date.now() - start < 4000) {
+        const { data } = await supabase.auth.getUser();
+        if (data?.user) {
+          goAfterLogin();
+          break;
+        }
+        await new Promise((r) => setTimeout(r, 150));
+      }
     } finally {
-      setBusy(false);
+      // Re-enable button after a short grace period in case navigation didn’t occur
+      setTimeout(() => {
+        if (!redirectedRef.current) setBusy(false);
+      }, 300);
     }
   };
 
@@ -118,11 +141,14 @@ export default function Login() {
           placeholderTextColor={colors.textSecondary}
           value={password}
           onChangeText={setPassword}
+          onSubmitEditing={signInWithPassword}
         />
 
+        {errorMsg && <Text style={styles.errorText}>{errorMsg}</Text>}
+
         <View style={styles.row}>
-          <TouchableOpacity style={styles.btnPrimary} onPress={signInWithPassword} disabled={busy}>
-            <Text style={styles.btnPrimaryText}>Sign in</Text>
+          <TouchableOpacity style={[styles.btnPrimary, busy && styles.btnDisabled]} onPress={signInWithPassword} disabled={busy}>
+            <Text style={styles.btnPrimaryText}>{busy ? "Signing in..." : "Sign in"}</Text>
           </TouchableOpacity>
         </View>
 
@@ -169,7 +195,9 @@ const styles = StyleSheet.create({
   btnOutline: { flex: 1, borderWidth: 1, borderColor: colors.border, borderRadius: 10, alignItems: "center", paddingVertical: 12 },
   btnOutlineText: { color: colors.text, fontWeight: "700" },
   btnPrimary: { backgroundColor: colors.primary, paddingVertical: 12, borderRadius: 10, alignItems: "center", flex: 1 },
+  btnDisabled: { opacity: 0.7 },
   btnPrimaryText: { color: "#fff", fontWeight: "700" },
+  errorText: { color: colors.error, marginTop: 8, textAlign: "center" },
   forgot: { alignItems: "center", marginTop: 20 },
   forgotText: { color: colors.textSecondary, textDecorationLine: "underline" },
   divider: { height: 1, backgroundColor: colors.border, marginVertical: 16 },

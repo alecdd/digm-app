@@ -171,6 +171,7 @@ function useDigmStoreImpl() {
           achievable: g.achievable ?? undefined,
           relevant: g.relevant ?? undefined,
           timeBound: g.time_bound ?? undefined,
+          completedAt: g.completed_at ?? undefined,
         }));
         setGoals(mappedGoals);
         console.log("[fetchAll] goals:", mappedGoals.length, mappedGoals.map(g => g.title));
@@ -519,19 +520,33 @@ function useDigmStoreImpl() {
       if (taskToUpdate.goalId) {
         const goalId = taskToUpdate.goalId;
         const progress = calculateGoalProgress(goalId);
-        setGoals((gs) => gs.map((g) => (g.id === goalId ? { ...g, progress } : g)));
-        const { error: gErr } = await supabase.from("goals").update({ progress }).eq("id", goalId);
+        const now = new Date().toISOString();
+        const goal = goals.find((g) => g.id === goalId);
+        const justCompleted = !!(goal && goal.progress < 100 && progress === 100);
+
+        // Persist goal progress (and completion timestamp if just completed)
+        const updatePatch: any = { progress };
+        if (justCompleted) updatePatch.completed_at = now;
+        const { error: gErr } = await supabase.from("goals").update(updatePatch).eq("id", goalId);
         if (gErr) console.error("Persist goal progress failed:", gErr);
 
-        const goal = goals.find((g) => g.id === goalId);
-        if (goal && goal.progress < 100 && progress === 100) {
+        // Update local state
+        setGoals((gs) => gs.map((g) => (g.id === goalId ? { ...g, progress, completedAt: justCompleted ? now : g.completedAt } : g)));
+
+        if (justCompleted) {
+          // Unpin automatically if pinned
+          setPinnedGoalIds((ids) => ids.filter((gid) => gid !== goalId));
+          if (userId) {
+            await supabase.from("pinned_goals").delete().eq("user_id", userId).eq("goal_id", goalId);
+          }
+
           await bumpXP(50);
-          setCompletedGoal({ ...goal, progress: 100 });
+          setCompletedGoal({ ...goal!, progress: 100, completedAt: now });
           setTimeout(() => setCompletedGoal(null), 5500);
         }
       }
     },
-    [tasks, calculateGoalProgress, goals, bumpXP]
+    [tasks, calculateGoalProgress, goals, bumpXP, userId]
   );
 
   const moveTask = useCallback(
@@ -747,6 +762,43 @@ function useDigmStoreImpl() {
     [userId, bumpXP]
   );
 
+  const updateJournalEntry = useCallback(
+    async (
+      id: string,
+      patch: Partial<Pick<JournalEntry, "content" | "accomplishments" | "blockers" | "gratitude" | "valueServed">>
+    ) => {
+      // Optimistic local update
+      setJournalEntries((es) =>
+        es.map((e) => (e.id === id ? { ...e, ...patch } : e))
+      );
+
+      const dbPatch: any = {
+        ...(patch.content !== undefined ? { content: patch.content } : {}),
+        ...(patch.accomplishments !== undefined ? { accomplishments: patch.accomplishments } : {}),
+        ...(patch.blockers !== undefined ? { blockers: patch.blockers } : {}),
+        ...(patch.gratitude !== undefined ? { gratitude: patch.gratitude } : {}),
+        ...(patch.valueServed !== undefined ? { value_served: patch.valueServed } : {}),
+      };
+      const { error } = await supabase
+        .from("journal_entries")
+        .update(dbPatch)
+        .eq("id", id);
+      if (error) {
+        console.error("updateJournalEntry failed:", error);
+      }
+    },
+    []
+  );
+
+  const deleteJournalEntry = useCallback(
+    async (id: string) => {
+      setJournalEntries((es) => es.filter((e) => e.id !== id));
+      const { error } = await supabase.from("journal_entries").delete().eq("id", id);
+      if (error) console.error("deleteJournalEntry failed:", error);
+    },
+    []
+  );
+
   // ---- Derived values -----------------------------------------
 
   const highImpactTasks = useMemo(() => tasks.filter((t) => t.isHighImpact && !t.isCompleted), [tasks]);
@@ -810,6 +862,8 @@ function useDigmStoreImpl() {
     updateGoal,
     deleteGoal,
     addJournalEntry,
+    updateJournalEntry,
+    deleteJournalEntry,
     togglePinGoal,
     bumpXP,
     // misc

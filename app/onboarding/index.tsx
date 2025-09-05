@@ -11,7 +11,6 @@ import colors from "@/constants/colors";
 import OnboardingProgress from "@/components/OnboardingProgress";
 import { quickStart } from "@/lib/onboarding";
 import { supabase } from "@/lib/supabase";
-import { ensureProfile } from "@/lib/supa-user";
 import CreateAccountStep, { SignupValues } from "./CreateAccountStep";
 import { BackHandler, Keyboard } from "react-native";
 
@@ -57,13 +56,41 @@ export default function OnboardingScreen() {
   useEffect(() => { stepRef.current = stepIdx; }, [stepIdx]);
   useEffect(() => { draftRef.current = draft; }, [draft]);
 
-  // ensure session (anon allowed) + load any saved answers
+  // Initialize onboarding state without creating sessions.
+  // If a real user is logged in, load any saved answers from DB.
+  // If logged out (or anonymous), load local draft answers from AsyncStorage only.
   useEffect(() => {
     (async () => {
       try {
-        const { user } = await ensureProfile({ allowAnonymous: true });
+        const { data: u } = await supabase.auth.getUser();
+        const user = u?.user ?? null;
+
+        if (!user) {
+          const raw = await AsyncStorage.getItem("pendingOnboardingAnswers");
+          if (raw) {
+            try { setAnswers(JSON.parse(raw)); } catch {}
+          }
+          setUserId(null);
+          return;
+        }
+
+        // Treat anonymous users like logged out for onboarding persistence
+        if (user?.app_metadata?.provider === "anonymous" || (user as any)?.is_anonymous) {
+          const raw = await AsyncStorage.getItem("pendingOnboardingAnswers");
+          if (raw) {
+            try { setAnswers(JSON.parse(raw)); } catch {}
+          }
+          setUserId(null);
+          return;
+        }
+
+        // Real user: load server-side answers
         setUserId(user.id);
-        const { data } = await supabase.from("onboarding_answers").select("data").eq("user_id", user.id).maybeSingle();
+        const { data } = await supabase
+          .from("onboarding_answers")
+          .select("data")
+          .eq("user_id", user.id)
+          .maybeSingle();
         if (data?.data) setAnswers(data.data);
       } catch (e: any) {
         console.error("Onboarding init failed:", e?.message || e);

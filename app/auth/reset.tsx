@@ -45,6 +45,10 @@ export default function ResetPasswordScreen() {
     // Handle: signup confirmation, password recovery, PKCE code, or access/refresh tokens
     (async () => {
       try {
+        // Debug the incoming params to verify email redirect contents
+        // eslint-disable-next-line no-console
+        console.log("[auth/reset] params:", JSON.stringify(params));
+
         // Signup email confirmation → verify OTP and move to onboarding finish
         if (params?.token_hash && params?.type === 'signup') {
           const { error } = await supabase.auth.verifyOtp({ type: 'signup', token_hash: String(params.token_hash) });
@@ -53,6 +57,15 @@ export default function ResetPasswordScreen() {
           (global as any).__SUPPRESS_WELCOME_ONCE__ = true;
           setReady(true);
           // Navigate user to app finish screen
+          router.replace('/onboarding/finish');
+          return;
+        }
+
+        // Some providers send type=signup without token/code on mobile
+        if (params?.type === 'signup' && !params?.token_hash && !params?.code && !params?.access_token) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (global as any).__SUPPRESS_WELCOME_ONCE__ = true;
+          setReady(true);
           router.replace('/onboarding/finish');
           return;
         }
@@ -85,6 +98,8 @@ export default function ResetPasswordScreen() {
           return;
         }
       } catch (e: any) {
+        // eslint-disable-next-line no-console
+        console.warn("[auth/reset] link handling failed:", e);
         Alert.alert("Link error", e?.message || "Your link is invalid or expired. If you were confirming signup, request a new email. If you were resetting your password, request a new reset email.");
       } finally {
         setReady(true);

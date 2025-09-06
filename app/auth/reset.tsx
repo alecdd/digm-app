@@ -64,6 +64,12 @@ export default function ResetPasswordScreen() {
         } else if (params?.code) {
           const { error } = await supabase.auth.exchangeCodeForSession(String(params.code));
           if (error) throw error;
+          // This path is typically signup confirmation (PKCE). Route to finish.
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (global as any).__SUPPRESS_WELCOME_ONCE__ = true;
+          setReady(true);
+          router.replace('/onboarding/finish');
+          return;
         } else if (params?.access_token && params?.refresh_token) {
           // Non-PKCE fallback
           const { error } = await supabase.auth.setSession({
@@ -71,6 +77,12 @@ export default function ResetPasswordScreen() {
             refresh_token: String(params.refresh_token),
           });
           if (error) throw error;
+          // Treat as a confirmed-login deep link; continue to finish setup
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (global as any).__SUPPRESS_WELCOME_ONCE__ = true;
+          setReady(true);
+          router.replace('/onboarding/finish');
+          return;
         }
       } catch (e: any) {
         Alert.alert("Link error", e?.message || "Your link is invalid or expired. If you were confirming signup, request a new email. If you were resetting your password, request a new reset email.");

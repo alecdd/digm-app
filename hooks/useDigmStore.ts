@@ -122,6 +122,20 @@ function useDigmStoreImpl() {
           console.log("[fetchAll] profile loaded:", { vision: data.vision, xp: data.xp, level: data.level });
         } else {
           console.log("[fetchAll] No profile found for user:", uid);
+          // First-login safety: create a minimal profile so the app can proceed
+          try {
+            const created = await ensureProfile({ defaults: { vision: "", onboarded: false } });
+            console.log("[fetchAll] ensureProfile created:", created.profile);
+            setUserProfile({
+              vision: created.profile.vision ?? "",
+              xp: 0,
+              level: 1,
+              streak: 0,
+              lastActive: new Date().toISOString(),
+            });
+          } catch (e) {
+            console.warn("[fetchAll] ensureProfile failed:", e);
+          }
         }
         console.log("[fetchAll] profile ok");
       }

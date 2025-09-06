@@ -23,9 +23,29 @@ export default function Login() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const redirectedRef = useRef(false);
 
-  const goAfterLogin = () => {
+  const goAfterLogin = async () => {
     if (redirectedRef.current) return;
     redirectedRef.current = true;
+    try {
+      // If no explicit redirect to finish was provided, decide based on profile.onboarded
+      if (redirectPath === "/(tabs)") {
+        const { data: u } = await supabase.auth.getUser();
+        const uid = u?.user?.id;
+        if (uid) {
+          const { data: prof } = await supabase
+            .from("profiles")
+            .select("onboarded")
+            .eq("id", uid)
+            .maybeSingle();
+          if (!prof?.onboarded) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (global as any).__SUPPRESS_WELCOME_ONCE__ = true;
+            router.replace("/onboarding/finish");
+            return;
+          }
+        }
+      }
+    } catch {}
     router.replace(redirectPath as Href);
   };
 
@@ -56,7 +76,7 @@ export default function Login() {
       while (Date.now() - start < 4000) {
         const { data } = await supabase.auth.getUser();
         if (data?.user) {
-          goAfterLogin();
+          await goAfterLogin();
           break;
         }
         await new Promise((r) => setTimeout(r, 150));

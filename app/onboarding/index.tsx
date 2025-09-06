@@ -203,7 +203,15 @@ const finalizeOnboarding = useCallback(async () => {
       email,
       password,
       options: {
-        data: { first_name, last_name },
+        // Store a minimal snapshot of onboarding in user metadata as a fallback
+        data: {
+          first_name,
+          last_name,
+          vision: answers["vision"] ?? "",
+          one_thing: answers["one_thing"] ?? "",
+          timeframe: answers["timeframe"] ?? "",
+          ninety_day_win: answers["ninety_day_win"] ?? "",
+        },
         emailRedirectTo,
       },
     });

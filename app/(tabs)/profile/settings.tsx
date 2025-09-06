@@ -128,7 +128,7 @@ export default function SettingsScreen() {
     setBusy(true);
     await AsyncStorage.multiRemove(["pendingOnboardingAnswers"]); // clear local caches
     store.reset();                                                // clear in-memory store
-    await supabase.auth.signOut();                                // end session
+    await supabase.auth.signOut({ scope: 'global' });             // end all sessions
     router.replace("/onboarding/welcome");                        // back to Welcome
   } catch (e: any) {
     Alert.alert("Sign out failed", e?.message || "Please try again.");

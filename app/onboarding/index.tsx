@@ -186,14 +186,18 @@ const finalizeOnboarding = useCallback(async () => {
       return;
     }
 
-    const emailRedirectTo =
-      Platform.OS === "web"
-        ? `${window.location.origin}/onboarding/finish`
-        : Linking.createURL("onboarding/finish");
+    // Use backend deep-link redirector in production builds so emails contain https links that 302 back into app
+    const backendBase = process.env.EXPO_PUBLIC_COACH_API_BASE || process.env.EXPO_PUBLIC_RORK_API_BASE_URL || "";
+    const emailRedirectTo = Platform.OS === "web"
+      ? `${window.location.origin}/onboarding/finish`
+      : backendBase ? `${backendBase.replace(/\/$/, "")}/auth/reset` : Linking.createURL("onboarding/finish");
 
     console.log("Mobile Redirect [signup] redirectTo:", emailRedirectTo);
 
     await supabase.auth.signOut({ scope: "global" }).catch(()=>{});
+    // Ensure welcome video does not interrupt immediate post-signup deep link
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (global as any).__SUPPRESS_WELCOME_ONCE__ = true;
 
     const { data, error } = await supabase.auth.signUp({
       email,

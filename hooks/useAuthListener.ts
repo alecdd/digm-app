@@ -59,6 +59,13 @@ export function useAuthListener(storeFunctions?: {
         try {
           const userId = session?.user?.id;
           if (!userId) return;
+          // One-time suppression guard (e.g., during password reset/signup link handling)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          if ((global as any).__SUPPRESS_WELCOME_ONCE__) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            delete (global as any).__SUPPRESS_WELCOME_ONCE__;
+            return;
+          }
           const localKey = `welcome_video_seen_local_${userId}`;
           const localSeen = await AsyncStorage.getItem(localKey);
           const { data: prof } = await supabase

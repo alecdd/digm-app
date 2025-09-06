@@ -97,12 +97,17 @@ export default function Login() {
     }
     try {
       setBusy(true);
-      await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo:
-          Platform.OS === "web"
-            ? `${window.location.origin}/auth/reset`
-            : Linking.createURL("auth/reset"),
-      });
+      // Suppress welcome video once during recovery flow
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (global as any).__SUPPRESS_WELCOME_ONCE__ = true;
+
+      // Use backend deep-link redirector so emails contain an https URL that 302s into the app scheme
+      const backendBase = process.env.EXPO_PUBLIC_COACH_API_BASE || process.env.EXPO_PUBLIC_RORK_API_BASE_URL || "";
+      const redirectTo = Platform.OS === "web"
+        ? `${window.location.origin}/auth/reset`
+        : backendBase ? `${backendBase.replace(/\/$/, "")}/auth/reset` : Linking.createURL("auth/reset");
+
+      await supabase.auth.resetPasswordForEmail(email, { redirectTo });
       Alert.alert("Email sent", "Please check your inbox (and spam) to reset your password.");
     } catch (e: any) {
       Alert.alert("Couldn’t send reset email", e?.message || "Try again.");

@@ -42,9 +42,22 @@ export default function ResetPasswordScreen() {
   };
 
   useEffect(() => {
-    // Handle various Supabase link formats: token_hash (recovery), PKCE code, or access/refresh tokens
+    // Handle: signup confirmation, password recovery, PKCE code, or access/refresh tokens
     (async () => {
       try {
+        // Signup email confirmation → verify OTP and move to onboarding finish
+        if (params?.token_hash && params?.type === 'signup') {
+          const { error } = await supabase.auth.verifyOtp({ type: 'signup', token_hash: String(params.token_hash) });
+          if (error) throw error;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (global as any).__SUPPRESS_WELCOME_ONCE__ = true;
+          setReady(true);
+          // Navigate user to app finish screen
+          router.replace('/onboarding/finish');
+          return;
+        }
+
+        // Password recovery → verify OTP then show password form
         if (params?.token_hash && params?.type === 'recovery') {
           const { error } = await supabase.auth.verifyOtp({ type: 'recovery', token_hash: String(params.token_hash) });
           if (error) throw error;
@@ -60,12 +73,12 @@ export default function ResetPasswordScreen() {
           if (error) throw error;
         }
       } catch (e: any) {
-        Alert.alert("Link error", e?.message || "Your reset link is invalid or expired. Request a new one from Sign in → Forgot password.");
+        Alert.alert("Link error", e?.message || "Your link is invalid or expired. If you were confirming signup, request a new email. If you were resetting your password, request a new reset email.");
       } finally {
         setReady(true);
       }
     })();
-  }, [params?.token_hash, params?.type, params?.code, params?.access_token, params?.refresh_token]);
+  }, [params?.token_hash, params?.type, params?.code, params?.access_token, params?.refresh_token, router]);
 
   if (!ready) {
     return (

@@ -330,7 +330,7 @@ function useDigmStoreImpl() {
    * Public refresher you can call after onboarding/login
    * to make Home reflect the latest DB state.
    */
-  const reloadAll = useCallback(async () => {
+  const reloadAll = useCallback(async (opts?: { force?: boolean }) => {
     // If userId is not set in store yet, try to get it from auth session
     let uid = userId;
     if (!uid) {
@@ -358,20 +358,20 @@ function useDigmStoreImpl() {
     // Only prevent infinite loops if we've already fetched data for this user AND found some data
     // If we found no data, allow retries (user might be new or data might be loading)
     const hasData = goals.length > 0 || tasks.length > 0 || userProfile.vision !== "";
-    if (fetchedUsers.current.has(uid) && hasData) {
+    if (!opts?.force && fetchedUsers.current.has(uid) && hasData) {
       console.log("[reloadAll] Already fetched data for user:", uid, "- skipping");
       return;
     }
 
     // If we've already fetched for this user but found no data, allow one more attempt
     // This handles cases where the store was reset but the user still needs data
-    if (fetchedUsers.current.has(uid) && !hasData) {
+    if (!opts?.force && fetchedUsers.current.has(uid) && !hasData) {
       console.log("[reloadAll] User marked as fetched but no data found, allowing retry for:", uid);
       fetchedUsers.current.delete(uid); // Remove from fetched users to allow retry
     }
 
     // Simple prevention: only skip if we're already loading
-    if (loading) {
+    if (!opts?.force && loading) {
       console.log("[reloadAll] Already loading, skipping");
       return;
     }

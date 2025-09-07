@@ -7,7 +7,7 @@ const LOGIN_REWARD_ENABLED = false;
 
 export function useAuthListener(storeFunctions?: {
   bumpXP?: (amount: number) => Promise<void>;
-  reloadAll?: () => Promise<void>;
+  reloadAll?: (opts?: { force?: boolean }) => Promise<void>;
   reset?: () => void;
 }) {
   // keep latest function refs so the effect can be [] (subscribe once)
@@ -52,10 +52,10 @@ export function useAuthListener(storeFunctions?: {
         // Give auth a moment to settle, then reload fresh data for the new uid
         await new Promise((r) => setTimeout(r, 120));
         try {
-          await reloadAllRef.current?.();
+          await reloadAllRef.current?.({ force: true });
           // Belt-and-suspenders: schedule a second and third pass in case the first fetch races with session propagation
-          setTimeout(() => reloadAllRef.current?.().catch(()=>{}), 400);
-          setTimeout(() => reloadAllRef.current?.().catch(()=>{}), 1500);
+          setTimeout(() => reloadAllRef.current?.({ force: true }).catch(()=>{}), 400);
+          setTimeout(() => reloadAllRef.current?.({ force: true }).catch(()=>{}), 1500);
         } catch (e) {
           console.error("Failed to reload data after auth:", e);
         }

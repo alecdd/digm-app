@@ -1,7 +1,6 @@
 // hooks/useAuthListener.ts
 import { useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const LOGIN_REWARD_ENABLED = false;
 
@@ -54,39 +53,6 @@ export function useAuthListener(storeFunctions?: {
         } catch (e) {
           console.error("Failed to reload data after auth:", e);
         }
-
-        // Welcome video gating
-        try {
-          const userId = session?.user?.id;
-          if (!userId) return;
-          const localKey = `welcome_video_seen_local_${userId}`;
-          const localSeen = await AsyncStorage.getItem(localKey);
-          const { data: prof } = await supabase
-            .from("profiles")
-            .select("welcome_video_seen_at")
-            .eq("id", userId)
-            .maybeSingle();
-          const alreadySeen = !!(prof?.welcome_video_seen_at || localSeen);
-          const videoUrl = process.env.EXPO_PUBLIC_WELCOME_VIDEO_URL || "";
-          if (!alreadySeen && videoUrl) {
-            // Provide a close handler that marks as seen when requested
-            const handleWelcomeClose = async (markSeen: boolean) => {
-              if (!markSeen) return;
-              try {
-                await AsyncStorage.setItem(`welcome_video_seen_local_${userId}`, "1");
-                await supabase
-                  .from("profiles")
-                  .update({ welcome_video_seen_at: new Date().toISOString() })
-                  .eq("id", userId);
-              } catch {}
-            };
-            // Expose callbacks for the app root to render and close the modal
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (global as any).__WELCOME_ON_CLOSE__ = handleWelcomeClose;
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (global as any).__SHOW_WELCOME__?.(videoUrl, userId);
-          }
-        } catch {}
       }
 
       // Optional first-login reward (kept here; won't affect reload loop)
@@ -109,6 +75,4 @@ export function useAuthListener(storeFunctions?: {
 
     return () => sub?.subscription?.unsubscribe?.();
   }, []); // <-- subscribe exactly once
-
-  // Nothing to render here; modal is managed at the app root
 }

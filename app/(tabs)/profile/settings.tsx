@@ -20,7 +20,7 @@ export default function SettingsScreen() {
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const store = useDigmStore();
-  const SUPPORT_URL = "https://digmapp.com/support";
+  const SUPPORT_URL = "https://digmapp.com";
   const FAQ_URL     = "https://digmapp.com";
   const ABOUT_URL   = "https://digmapp.com";
   const FEEDBACK_URL = "https://docs.google.com/forms/d/1_N2y_uTiReRoZRgi0BiVQKtjLn-rC6QN0tUhZpzvAvM/edit";
@@ -128,7 +128,7 @@ export default function SettingsScreen() {
     setBusy(true);
     await AsyncStorage.multiRemove(["pendingOnboardingAnswers"]); // clear local caches
     store.reset();                                                // clear in-memory store
-    await supabase.auth.signOut({ scope: 'global' });             // end all sessions
+    await supabase.auth.signOut();                                // end session
     router.replace("/onboarding/welcome");                        // back to Welcome
   } catch (e: any) {
     Alert.alert("Sign out failed", e?.message || "Please try again.");

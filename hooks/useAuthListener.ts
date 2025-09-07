@@ -7,7 +7,7 @@ const LOGIN_REWARD_ENABLED = false;
 
 export function useAuthListener(storeFunctions?: {
   bumpXP?: (amount: number) => Promise<void>;
-  reloadAll?: (opts?: { force?: boolean }) => Promise<void>;
+  reloadAll?: () => Promise<void>;
   reset?: () => void;
 }) {
   // keep latest function refs so the effect can be [] (subscribe once)
@@ -46,16 +46,11 @@ export function useAuthListener(storeFunctions?: {
         uid !== lastUid.current;
 
       if (shouldReload) {
-        // Switching users: clear any in-memory state first to avoid showing stale data
-        try { resetRef.current?.(); } catch {}
         lastUid.current = uid;
-        // Give auth a moment to settle, then reload fresh data for the new uid
-        await new Promise((r) => setTimeout(r, 120));
+        // Wait a bit longer to ensure the store is properly initialized
+        await new Promise((r) => setTimeout(r, 100));
         try {
-          await reloadAllRef.current?.({ force: true });
-          // Belt-and-suspenders: schedule a second and third pass in case the first fetch races with session propagation
-          setTimeout(() => reloadAllRef.current?.({ force: true }).catch(()=>{}), 400);
-          setTimeout(() => reloadAllRef.current?.({ force: true }).catch(()=>{}), 1500);
+          await reloadAllRef.current?.();
         } catch (e) {
           console.error("Failed to reload data after auth:", e);
         }
@@ -64,13 +59,6 @@ export function useAuthListener(storeFunctions?: {
         try {
           const userId = session?.user?.id;
           if (!userId) return;
-          // One-time suppression guard (e.g., during password reset/signup link handling)
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          if ((global as any).__SUPPRESS_WELCOME_ONCE__) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            delete (global as any).__SUPPRESS_WELCOME_ONCE__;
-            return;
-          }
           const localKey = `welcome_video_seen_local_${userId}`;
           const localSeen = await AsyncStorage.getItem(localKey);
           const { data: prof } = await supabase

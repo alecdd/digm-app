@@ -76,14 +76,7 @@ export default function GoalTimeframeCard({ title, goals, onAddGoal }: GoalTimef
             activeOpacity={0.7}
           >
             <View style={styles.goalHeader}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                <Text style={[styles.goalTitle, goal.progress === 100 && styles.completedGoalTitle]}>{goal.title}</Text>
-                {goal.progress === 100 && (
-                  <View style={styles.completedBadge}>
-                    <Text style={styles.completedBadgeText}>Completed</Text>
-                  </View>
-                )}
-              </View>
+              <Text style={[styles.goalTitle, goal.progress === 100 && styles.completedGoalTitle]}>{goal.title}</Text>
               <View style={styles.goalActions}>
                 <TouchableOpacity
                   onPress={() => handleTogglePin(goal.id)}
@@ -223,18 +216,6 @@ const styles = StyleSheet.create({
   },
   completedGoalItem: {
     opacity: 0.8,
-  },
-  completedBadge: {
-    backgroundColor: colors.success,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-    marginLeft: 8,
-  },
-  completedBadgeText: {
-    color: colors.text,
-    fontSize: 12,
-    fontWeight: '700',
   },
   goalActions: {
     flexDirection: "row",

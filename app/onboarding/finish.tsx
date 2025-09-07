@@ -88,17 +88,6 @@ export default function OnboardingFinish() {
                 }
               } catch {}
             }
-            // Fallback to minimal metadata captured at sign up
-            if (!answers || Object.keys(answers).length === 0) {
-              const fromMeta: Record<string, any> = {};
-              if (meta.first_name) fromMeta.first_name = meta.first_name;
-              if (meta.last_name) fromMeta.last_name = meta.last_name;
-              if (meta.vision) fromMeta.vision = meta.vision;
-              if (meta.one_thing) fromMeta.one_thing = meta.one_thing;
-              if (meta.timeframe) fromMeta.timeframe = meta.timeframe;
-              if (meta.ninety_day_win) fromMeta.ninety_day_win = meta.ninety_day_win;
-              answers = fromMeta;
-            }
           }
 
           // Persist (or re-persist) answers under the REAL user id (idempotent)
@@ -115,7 +104,7 @@ export default function OnboardingFinish() {
           // --- 3) Upsert profile with names + vision (idempotent) ---------------
           const first_name = (answers["first_name"] ?? meta.first_name ?? "").trim();
           const last_name  = (answers["last_name"]  ?? meta.last_name  ?? "").trim();
-          const vision     = (answers["vision"] ?? meta.vision ?? "").trim();
+          const vision     = (answers["vision"] ?? "").trim();
 
           // Ensure there is a row and mark onboarded
           const { error: profErr } = await supabase
@@ -134,8 +123,8 @@ export default function OnboardingFinish() {
           if (profErr) throw profErr;
 
           // --- 4) Create first goal (if not already created) --------------------
-          const title = answers["one_thing"] || meta.one_thing || "Your #1 Goal";
-          const timeframeStr = (answers["timeframe"] as string) || meta.timeframe || "3 months";
+          const title = answers["one_thing"] || "Your #1 Goal";
+          const timeframeStr = (answers["timeframe"] as string) || "3 months";
           const due = pickDueDateFromTimeframe(timeframeStr);
 
           const { data: existingGoal } = await supabase
@@ -166,7 +155,7 @@ export default function OnboardingFinish() {
           }
 
           // --- 5) Create first task (if missing) --------------------------------
-          const taskTitle = `First step: ${answers["ninety_day_win"] || meta.ninety_day_win || "Start now"}`;
+          const taskTitle = `First step: ${answers["ninety_day_win"] || "Start now"}`;
           const { data: existingTask } = await supabase
             .from("tasks")
             .select("id")

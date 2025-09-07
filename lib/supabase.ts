@@ -2,7 +2,7 @@
 import "react-native-url-polyfill/auto";
 import { createClient } from "@supabase/supabase-js";
 import { Platform } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
 
 const sanitize = (v: string) =>
   v.replace(/["'`]/g, "").replace(/[\s\u200B-\u200D\uFEFF]/g, "");
@@ -38,14 +38,14 @@ console.log("[supabase] Init", {
   keyPreview: `${supabaseAnonKey.slice(0, 6)}...${supabaseAnonKey.slice(-6)}`
 });
 
-// Use AsyncStorage on native to avoid SecureStore 2KB limit on iOS
+// Only use SecureStore on native
 const nativeStorage =
   Platform.OS === "web"
     ? undefined
     : ({
-        getItem: AsyncStorage.getItem,
-        setItem: AsyncStorage.setItem,
-        removeItem: AsyncStorage.removeItem,
+        getItem: SecureStore.getItemAsync,
+        setItem: SecureStore.setItemAsync,
+        removeItem: SecureStore.deleteItemAsync,
       } as any);
 
 export const supabase = createClient(

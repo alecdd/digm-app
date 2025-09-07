@@ -11,6 +11,7 @@ import colors from "@/constants/colors";
 import OnboardingProgress from "@/components/OnboardingProgress";
 import { quickStart } from "@/lib/onboarding";
 import { supabase } from "@/lib/supabase";
+import { ensureProfile } from "@/lib/supa-user";
 import CreateAccountStep, { SignupValues } from "./CreateAccountStep";
 import { BackHandler, Keyboard } from "react-native";
 
@@ -56,41 +57,13 @@ export default function OnboardingScreen() {
   useEffect(() => { stepRef.current = stepIdx; }, [stepIdx]);
   useEffect(() => { draftRef.current = draft; }, [draft]);
 
-  // Initialize onboarding state without creating sessions.
-  // If a real user is logged in, load any saved answers from DB.
-  // If logged out (or anonymous), load local draft answers from AsyncStorage only.
+  // ensure session (anon allowed) + load any saved answers
   useEffect(() => {
     (async () => {
       try {
-        const { data: u } = await supabase.auth.getUser();
-        const user = u?.user ?? null;
-
-        if (!user) {
-          const raw = await AsyncStorage.getItem("pendingOnboardingAnswers");
-          if (raw) {
-            try { setAnswers(JSON.parse(raw)); } catch {}
-          }
-          setUserId(null);
-          return;
-        }
-
-        // Treat anonymous users like logged out for onboarding persistence
-        if (user?.app_metadata?.provider === "anonymous" || (user as any)?.is_anonymous) {
-          const raw = await AsyncStorage.getItem("pendingOnboardingAnswers");
-          if (raw) {
-            try { setAnswers(JSON.parse(raw)); } catch {}
-          }
-          setUserId(null);
-          return;
-        }
-
-        // Real user: load server-side answers
+        const { user } = await ensureProfile({ allowAnonymous: true });
         setUserId(user.id);
-        const { data } = await supabase
-          .from("onboarding_answers")
-          .select("data")
-          .eq("user_id", user.id)
-          .maybeSingle();
+        const { data } = await supabase.from("onboarding_answers").select("data").eq("user_id", user.id).maybeSingle();
         if (data?.data) setAnswers(data.data);
       } catch (e: any) {
         console.error("Onboarding init failed:", e?.message || e);
@@ -186,32 +159,20 @@ const finalizeOnboarding = useCallback(async () => {
       return;
     }
 
-    // Use backend deep-link redirector in production builds so emails contain https links that 302 back into app
-    const backendBase = process.env.EXPO_PUBLIC_COACH_API_BASE || process.env.EXPO_PUBLIC_RORK_API_BASE_URL || "";
-    const emailRedirectTo = Platform.OS === "web"
-      ? `${window.location.origin}/onboarding/finish`
-      : backendBase ? `${backendBase.replace(/\/$/, "")}/auth/reset` : Linking.createURL("onboarding/finish");
+    const emailRedirectTo =
+      Platform.OS === "web"
+        ? `${window.location.origin}/onboarding/finish`
+        : Linking.createURL("onboarding/finish");
 
     console.log("Mobile Redirect [signup] redirectTo:", emailRedirectTo);
 
     await supabase.auth.signOut({ scope: "global" }).catch(()=>{});
-    // Ensure welcome video does not interrupt immediate post-signup deep link
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (global as any).__SUPPRESS_WELCOME_ONCE__ = true;
 
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        // Store a minimal snapshot of onboarding in user metadata as a fallback
-        data: {
-          first_name,
-          last_name,
-          vision: answers["vision"] ?? "",
-          one_thing: answers["one_thing"] ?? "",
-          timeframe: answers["timeframe"] ?? "",
-          ninety_day_win: answers["ninety_day_win"] ?? "",
-        },
+        data: { first_name, last_name },
         emailRedirectTo,
       },
     });

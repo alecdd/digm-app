@@ -24,7 +24,6 @@ export interface Goal {
   achievable?: string;
   relevant?: string;
   timeBound?: string;
-  completedAt?: string;
 }
 
 export interface JournalEntry {

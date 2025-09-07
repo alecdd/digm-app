@@ -66,7 +66,6 @@ function useDigmStoreImpl() {
   const reloadAllInFlight = useRef(false);
   const fetchedUsers = useRef<Set<string>>(new Set());
   const initialLoadComplete = useRef(false);
-  const currentUserIdRef = useRef<string | null>(null);
 
   console.log("[useDigmStore] Store state initialized");
 
@@ -74,7 +73,6 @@ function useDigmStoreImpl() {
    /** Full in-memory reset (for sign-out) */
   const reset = useCallback(() => {
     setUserId(null);
-    currentUserIdRef.current = null;
     setUserProfile(initialProfile());
     setGoals([]);
     setTasks([]);
@@ -93,10 +91,6 @@ function useDigmStoreImpl() {
    * Kept stable with an empty dependency array.
    */
   const fetchAll = useCallback(async (uid: string) => {
-    const expectedUid = uid;
-    // Keep a reference of which user this fetch was started for
-    // Any subsequent user switches should invalidate this fetch's state writes
-    const isStale = () => currentUserIdRef.current !== expectedUid;
     if (!uid) {
       console.warn("[fetchAll] No user ID provided, skipping fetch");
       return;
@@ -118,7 +112,6 @@ function useDigmStoreImpl() {
           // Don't throw, just log and continue
         } else if (data) {
           console.log("[fetchAll] Profile data found:", data);
-          if (isStale()) { console.log("[fetchAll] Stale profile result ignored for", expectedUid); return; }
           setUserProfile({
             vision: data.vision ?? "",
             xp: data.xp ?? 0,
@@ -129,23 +122,6 @@ function useDigmStoreImpl() {
           console.log("[fetchAll] profile loaded:", { vision: data.vision, xp: data.xp, level: data.level });
         } else {
           console.log("[fetchAll] No profile found for user:", uid);
-          // First-login safety: create a minimal profile so the app can proceed
-          try {
-            const created = await ensureProfile({ defaults: { vision: "", onboarded: false } });
-            console.log("[fetchAll] ensureProfile created:", created.profile);
-            if (isStale()) { console.log("[fetchAll] Stale ensureProfile ignored for", expectedUid); return; }
-            setUserProfile({
-              vision: created.profile.vision ?? "",
-              xp: 0,
-              level: 1,
-              streak: 0,
-              lastActive: new Date().toISOString(),
-            });
-            // After creating a profile, mark this user as needing a second fetch to pick up derived tables
-            fetchedUsers.current.delete(uid);
-          } catch (e) {
-            console.warn("[fetchAll] ensureProfile failed:", e);
-          }
         }
         console.log("[fetchAll] profile ok");
       }
@@ -163,7 +139,6 @@ function useDigmStoreImpl() {
         // Don't throw, just log and continue
       } else {
         console.log("[fetchAll] Pinned goals data:", data);
-        if (isStale()) { console.log("[fetchAll] Stale pinned_goals ignored for", expectedUid); return; }
         const ids = (data ?? []).map((r: any) => r.goal_id as string);
         setPinnedGoalIds(prev => (arraysEqual(prev, ids) ? prev : ids));
         console.log("[fetchAll] pinned:", ids.length);
@@ -196,9 +171,7 @@ function useDigmStoreImpl() {
           achievable: g.achievable ?? undefined,
           relevant: g.relevant ?? undefined,
           timeBound: g.time_bound ?? undefined,
-          completedAt: g.completed_at ?? undefined,
         }));
-        if (isStale()) { console.log("[fetchAll] Stale goals ignored for", expectedUid); return; }
         setGoals(mappedGoals);
         console.log("[fetchAll] goals:", mappedGoals.length, mappedGoals.map(g => g.title));
       }
@@ -215,7 +188,6 @@ function useDigmStoreImpl() {
       if (error) {
         console.error("[fetchAll] Journal entries query error:", error);
       } else {
-        if (isStale()) { console.log("[fetchAll] Stale journal_entries ignored for", expectedUid); return; }
         const mapped: JournalEntry[] = (data ?? []).map((j: any) => ({
           id: j.id,
           date: j.created_at,
@@ -255,7 +227,7 @@ function useDigmStoreImpl() {
           createdAt: t.created_at,
           completedAt: t.completed_at ?? undefined,
         }));
-        if (isStale()) { console.log("[fetchAll] Stale tasks ignored for", expectedUid); return; }
+
         setTasks(mapped);
         setGoals((g) =>
           g.map((goal) => {
@@ -318,7 +290,6 @@ function useDigmStoreImpl() {
         const uid = user.id;
         console.log("[useDigmStore] Setting userId and fetching data for:", uid);
         setUserId(uid);
-        currentUserIdRef.current = uid;
         await new Promise((r) => setTimeout(r, 100));
         console.log("[useDigmStore] About to call fetchAll for user:", uid);
         try {
@@ -342,7 +313,7 @@ function useDigmStoreImpl() {
    * Public refresher you can call after onboarding/login
    * to make Home reflect the latest DB state.
    */
-  const reloadAll = useCallback(async (opts?: { force?: boolean }) => {
+  const reloadAll = useCallback(async () => {
     // If userId is not set in store yet, try to get it from auth session
     let uid = userId;
     if (!uid) {
@@ -350,7 +321,6 @@ function useDigmStoreImpl() {
       uid = user?.id ?? null;
       if (uid) {
         setUserId(uid); // Set userId if we found it
-        currentUserIdRef.current = uid;
       }
     }
     
@@ -371,20 +341,20 @@ function useDigmStoreImpl() {
     // Only prevent infinite loops if we've already fetched data for this user AND found some data
     // If we found no data, allow retries (user might be new or data might be loading)
     const hasData = goals.length > 0 || tasks.length > 0 || userProfile.vision !== "";
-    if (!opts?.force && fetchedUsers.current.has(uid) && hasData) {
+    if (fetchedUsers.current.has(uid) && hasData) {
       console.log("[reloadAll] Already fetched data for user:", uid, "- skipping");
       return;
     }
 
     // If we've already fetched for this user but found no data, allow one more attempt
     // This handles cases where the store was reset but the user still needs data
-    if (!opts?.force && fetchedUsers.current.has(uid) && !hasData) {
+    if (fetchedUsers.current.has(uid) && !hasData) {
       console.log("[reloadAll] User marked as fetched but no data found, allowing retry for:", uid);
       fetchedUsers.current.delete(uid); // Remove from fetched users to allow retry
     }
 
     // Simple prevention: only skip if we're already loading
-    if (!opts?.force && loading) {
+    if (loading) {
       console.log("[reloadAll] Already loading, skipping");
       return;
     }
@@ -549,33 +519,19 @@ function useDigmStoreImpl() {
       if (taskToUpdate.goalId) {
         const goalId = taskToUpdate.goalId;
         const progress = calculateGoalProgress(goalId);
-        const now = new Date().toISOString();
-        const goal = goals.find((g) => g.id === goalId);
-        const justCompleted = !!(goal && goal.progress < 100 && progress === 100);
-
-        // Persist goal progress (and completion timestamp if just completed)
-        const updatePatch: any = { progress };
-        if (justCompleted) updatePatch.completed_at = now;
-        const { error: gErr } = await supabase.from("goals").update(updatePatch).eq("id", goalId);
+        setGoals((gs) => gs.map((g) => (g.id === goalId ? { ...g, progress } : g)));
+        const { error: gErr } = await supabase.from("goals").update({ progress }).eq("id", goalId);
         if (gErr) console.error("Persist goal progress failed:", gErr);
 
-        // Update local state
-        setGoals((gs) => gs.map((g) => (g.id === goalId ? { ...g, progress, completedAt: justCompleted ? now : g.completedAt } : g)));
-
-        if (justCompleted) {
-          // Unpin automatically if pinned
-          setPinnedGoalIds((ids) => ids.filter((gid) => gid !== goalId));
-          if (userId) {
-            await supabase.from("pinned_goals").delete().eq("user_id", userId).eq("goal_id", goalId);
-          }
-
+        const goal = goals.find((g) => g.id === goalId);
+        if (goal && goal.progress < 100 && progress === 100) {
           await bumpXP(50);
-          setCompletedGoal({ ...goal!, progress: 100, completedAt: now });
+          setCompletedGoal({ ...goal, progress: 100 });
           setTimeout(() => setCompletedGoal(null), 5500);
         }
       }
     },
-    [tasks, calculateGoalProgress, goals, bumpXP, userId]
+    [tasks, calculateGoalProgress, goals, bumpXP]
   );
 
   const moveTask = useCallback(
@@ -791,43 +747,6 @@ function useDigmStoreImpl() {
     [userId, bumpXP]
   );
 
-  const updateJournalEntry = useCallback(
-    async (
-      id: string,
-      patch: Partial<Pick<JournalEntry, "content" | "accomplishments" | "blockers" | "gratitude" | "valueServed">>
-    ) => {
-      // Optimistic local update
-      setJournalEntries((es) =>
-        es.map((e) => (e.id === id ? { ...e, ...patch } : e))
-      );
-
-      const dbPatch: any = {
-        ...(patch.content !== undefined ? { content: patch.content } : {}),
-        ...(patch.accomplishments !== undefined ? { accomplishments: patch.accomplishments } : {}),
-        ...(patch.blockers !== undefined ? { blockers: patch.blockers } : {}),
-        ...(patch.gratitude !== undefined ? { gratitude: patch.gratitude } : {}),
-        ...(patch.valueServed !== undefined ? { value_served: patch.valueServed } : {}),
-      };
-      const { error } = await supabase
-        .from("journal_entries")
-        .update(dbPatch)
-        .eq("id", id);
-      if (error) {
-        console.error("updateJournalEntry failed:", error);
-      }
-    },
-    []
-  );
-
-  const deleteJournalEntry = useCallback(
-    async (id: string) => {
-      setJournalEntries((es) => es.filter((e) => e.id !== id));
-      const { error } = await supabase.from("journal_entries").delete().eq("id", id);
-      if (error) console.error("deleteJournalEntry failed:", error);
-    },
-    []
-  );
-
   // ---- Derived values -----------------------------------------
 
   const highImpactTasks = useMemo(() => tasks.filter((t) => t.isHighImpact && !t.isCompleted), [tasks]);
@@ -891,8 +810,6 @@ function useDigmStoreImpl() {
     updateGoal,
     deleteGoal,
     addJournalEntry,
-    updateJournalEntry,
-    deleteJournalEntry,
     togglePinGoal,
     bumpXP,
     // misc

@@ -42,47 +42,15 @@ export default function ResetPasswordScreen() {
   };
 
   useEffect(() => {
-    // Handle: signup confirmation, password recovery, PKCE code, or access/refresh tokens
+    // Handle various Supabase link formats: token_hash (recovery), PKCE code, or access/refresh tokens
     (async () => {
       try {
-        // Debug the incoming params to verify email redirect contents
-        // eslint-disable-next-line no-console
-        console.log("[auth/reset] params:", JSON.stringify(params));
-
-        // Signup email confirmation → verify OTP and move to onboarding finish
-        if (params?.token_hash && params?.type === 'signup') {
-          const { error } = await supabase.auth.verifyOtp({ type: 'signup', token_hash: String(params.token_hash) });
-          if (error) throw error;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (global as any).__SUPPRESS_WELCOME_ONCE__ = true;
-          setReady(true);
-          // Navigate user to app finish screen
-          router.replace('/onboarding/finish');
-          return;
-        }
-
-        // Some providers send type=signup without token/code on mobile
-        if (params?.type === 'signup' && !params?.token_hash && !params?.code && !params?.access_token) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (global as any).__SUPPRESS_WELCOME_ONCE__ = true;
-          setReady(true);
-          router.replace('/onboarding/finish');
-          return;
-        }
-
-        // Password recovery → verify OTP then show password form
         if (params?.token_hash && params?.type === 'recovery') {
           const { error } = await supabase.auth.verifyOtp({ type: 'recovery', token_hash: String(params.token_hash) });
           if (error) throw error;
         } else if (params?.code) {
           const { error } = await supabase.auth.exchangeCodeForSession(String(params.code));
           if (error) throw error;
-          // This path is typically signup confirmation (PKCE). Route to finish.
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (global as any).__SUPPRESS_WELCOME_ONCE__ = true;
-          setReady(true);
-          router.replace('/onboarding/finish');
-          return;
         } else if (params?.access_token && params?.refresh_token) {
           // Non-PKCE fallback
           const { error } = await supabase.auth.setSession({
@@ -90,22 +58,14 @@ export default function ResetPasswordScreen() {
             refresh_token: String(params.refresh_token),
           });
           if (error) throw error;
-          // Treat as a confirmed-login deep link; continue to finish setup
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (global as any).__SUPPRESS_WELCOME_ONCE__ = true;
-          setReady(true);
-          router.replace('/onboarding/finish');
-          return;
         }
       } catch (e: any) {
-        // eslint-disable-next-line no-console
-        console.warn("[auth/reset] link handling failed:", e);
-        Alert.alert("Link error", e?.message || "Your link is invalid or expired. If you were confirming signup, request a new email. If you were resetting your password, request a new reset email.");
+        Alert.alert("Link error", e?.message || "Your reset link is invalid or expired. Request a new one from Sign in → Forgot password.");
       } finally {
         setReady(true);
       }
     })();
-  }, [params?.token_hash, params?.type, params?.code, params?.access_token, params?.refresh_token, router]);
+  }, [params?.token_hash, params?.type, params?.code, params?.access_token, params?.refresh_token]);
 
   if (!ready) {
     return (

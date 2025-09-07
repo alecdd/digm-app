@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useState } from "react";
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, Platform,
 } from "react-native";
@@ -20,34 +20,8 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const redirectedRef = useRef(false);
 
-  const goAfterLogin = async () => {
-    if (redirectedRef.current) return;
-    redirectedRef.current = true;
-    try {
-      // If no explicit redirect to finish was provided, decide based on profile.onboarded
-      if (redirectPath === "/(tabs)") {
-        const { data: u } = await supabase.auth.getUser();
-        const uid = u?.user?.id;
-        if (uid) {
-          const { data: prof } = await supabase
-            .from("profiles")
-            .select("onboarded")
-            .eq("id", uid)
-            .maybeSingle();
-          if (!prof?.onboarded) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (global as any).__SUPPRESS_WELCOME_ONCE__ = true;
-            router.replace("/onboarding/finish");
-            return;
-          }
-        }
-      }
-    } catch {}
-    router.replace(redirectPath as Href);
-  };
+  const goAfterLogin = () => router.replace(redirectPath as Href);
 
   const signInWithPassword = async () => {
     if (!email || !password) {
@@ -56,11 +30,6 @@ export default function Login() {
     }
     try {
       setBusy(true);
-      setErrorMsg(null);
-      
-      // Clear any existing session to avoid conflicts
-      await supabase.auth.signOut({ scope: 'global' });
-      
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
         const msg = (error.message || "").toLowerCase();
@@ -68,24 +37,12 @@ export default function Login() {
           Alert.alert("Confirm your email", "Check your inbox, then sign in again.");
           return;
         }
-        setErrorMsg(error.message);
+        Alert.alert("Sign-in failed", error.message);
         return;
       }
-      // Wait for session/user to be available, then navigate
-      const start = Date.now();
-      while (Date.now() - start < 4000) {
-        const { data } = await supabase.auth.getUser();
-        if (data?.user) {
-          await goAfterLogin();
-          break;
-        }
-        await new Promise((r) => setTimeout(r, 150));
-      }
+      goAfterLogin();
     } finally {
-      // Re-enable button after a short grace period in case navigation didn’t occur
-      setTimeout(() => {
-        if (!redirectedRef.current) setBusy(false);
-      }, 300);
+      setBusy(false);
     }
   };
 
@@ -117,17 +74,12 @@ export default function Login() {
     }
     try {
       setBusy(true);
-      // Suppress welcome video once during recovery flow
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (global as any).__SUPPRESS_WELCOME_ONCE__ = true;
-
-      // Use backend deep-link redirector so emails contain an https URL that 302s into the app scheme
-      const backendBase = process.env.EXPO_PUBLIC_COACH_API_BASE || process.env.EXPO_PUBLIC_RORK_API_BASE_URL || "";
-      const redirectTo = Platform.OS === "web"
-        ? `${window.location.origin}/auth/reset`
-        : backendBase ? `${backendBase.replace(/\/$/, "")}/auth/reset` : Linking.createURL("auth/reset");
-
-      await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+      await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo:
+          Platform.OS === "web"
+            ? `${window.location.origin}/auth/reset`
+            : Linking.createURL("auth/reset"),
+      });
       Alert.alert("Email sent", "Please check your inbox (and spam) to reset your password.");
     } catch (e: any) {
       Alert.alert("Couldn’t send reset email", e?.message || "Try again.");
@@ -166,14 +118,11 @@ export default function Login() {
           placeholderTextColor={colors.textSecondary}
           value={password}
           onChangeText={setPassword}
-          onSubmitEditing={signInWithPassword}
         />
 
-        {errorMsg && <Text style={styles.errorText}>{errorMsg}</Text>}
-
         <View style={styles.row}>
-          <TouchableOpacity style={[styles.btnPrimary, busy && styles.btnDisabled]} onPress={signInWithPassword} disabled={busy}>
-            <Text style={styles.btnPrimaryText}>{busy ? "Signing in..." : "Sign in"}</Text>
+          <TouchableOpacity style={styles.btnPrimary} onPress={signInWithPassword} disabled={busy}>
+            <Text style={styles.btnPrimaryText}>Sign in</Text>
           </TouchableOpacity>
         </View>
 
@@ -220,9 +169,7 @@ const styles = StyleSheet.create({
   btnOutline: { flex: 1, borderWidth: 1, borderColor: colors.border, borderRadius: 10, alignItems: "center", paddingVertical: 12 },
   btnOutlineText: { color: colors.text, fontWeight: "700" },
   btnPrimary: { backgroundColor: colors.primary, paddingVertical: 12, borderRadius: 10, alignItems: "center", flex: 1 },
-  btnDisabled: { opacity: 0.7 },
   btnPrimaryText: { color: "#fff", fontWeight: "700" },
-  errorText: { color: colors.error, marginTop: 8, textAlign: "center" },
   forgot: { alignItems: "center", marginTop: 20 },
   forgotText: { color: colors.textSecondary, textDecorationLine: "underline" },
   divider: { height: 1, backgroundColor: colors.border, marginVertical: 16 },

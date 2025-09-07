@@ -153,7 +153,6 @@ export default function XPBar({ currentXP, level, onLevelUp, compact = false, us
 
   useEffect(() => {
     const baseline = lastSeenLevelRef.current ?? previousLevel.current;
-    // Only trigger when level actually increases
     if (level > baseline) {
       console.log(`🎖️ LEVEL UP DETECTED! From level ${previousLevel.current} to ${level}`);
       

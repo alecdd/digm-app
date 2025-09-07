@@ -22,8 +22,11 @@ export async function ensureSession(allowAnonymous = true): Promise<User | null>
     const { data: who } = await supabase.auth.getUser();
     return who.user ?? null;
   }
-  // Don't create anonymous sessions - they interfere with real auth
-  return null;
+  if (!allowAnonymous) return null;
+  const { data, error } = await supabase.auth.signInAnonymously();
+  if (error) throw error;
+  const { data: who2 } = await supabase.auth.getUser();
+  return who2.user ?? null;
 }
 
 export async function ensureProfile(opts?: { allowAnonymous?: boolean; defaults?: Partial<ProfileRow> }) {

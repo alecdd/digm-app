@@ -49,7 +49,6 @@ export default function GoalDetailModal({
   const goalTasks = tasks.filter((task) => task.goalId === goal.id);
   const completedTasks = goalTasks.filter((task) => task.status === 'done');
   const pendingTasks = goalTasks.filter((task) => task.status !== 'done');
-  const progressPct = Math.round((completedTasks.length / Math.max(1, goalTasks.length)) * 100);
 
   const handleDelete = () => {
     Alert.alert(
@@ -127,11 +126,13 @@ export default function GoalDetailModal({
               <View style={styles.progressContainer}>
                 <View style={styles.progressHeader}>
                   <Text style={styles.progressTitle}>Progress</Text>
-                  <Text style={styles.progressPercentage}>{progressPct}%</Text>
+                  <Text style={styles.progressPercentage}>
+                    {goal.progress}%
+                  </Text>
                 </View>
                 <View style={styles.progressBarContainer}>
                   <View
-                    style={[styles.progressBar, { width: `${progressPct}%` }]}
+                    style={[styles.progressBar, { width: `${goal.progress}%` }]}
                   />
                 </View>
                 <Text style={styles.progressStats}>

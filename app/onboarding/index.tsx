@@ -159,12 +159,10 @@ const finalizeOnboarding = useCallback(async () => {
       return;
     }
 
-    /*const emailRedirectTo =
+    const emailRedirectTo =
       Platform.OS === "web"
         ? `${window.location.origin}/auth/login`
-        : Linking.createURL("auth/login");"*/
-
-    const emailRedirectTo  = "digm://auth/login";
+        : Linking.createURL("auth/login");
 
     console.log("Mobile Redirect [signup] redirectTo:", emailRedirectTo);
 

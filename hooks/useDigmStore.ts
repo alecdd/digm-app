@@ -66,6 +66,7 @@ function useDigmStoreImpl() {
   const reloadAllInFlight = useRef(false);
   const fetchedUsers = useRef<Set<string>>(new Set());
   const initialLoadComplete = useRef(false);
+  const currentUserIdRef = useRef<string | null>(null);
 
   console.log("[useDigmStore] Store state initialized");
 
@@ -73,6 +74,7 @@ function useDigmStoreImpl() {
    /** Full in-memory reset (for sign-out) */
   const reset = useCallback(() => {
     setUserId(null);
+    currentUserIdRef.current = null;
     setUserProfile(initialProfile());
     setGoals([]);
     setTasks([]);
@@ -91,6 +93,10 @@ function useDigmStoreImpl() {
    * Kept stable with an empty dependency array.
    */
   const fetchAll = useCallback(async (uid: string) => {
+    const expectedUid = uid;
+    // Keep a reference of which user this fetch was started for
+    // Any subsequent user switches should invalidate this fetch's state writes
+    const isStale = () => currentUserIdRef.current !== expectedUid;
     if (!uid) {
       console.warn("[fetchAll] No user ID provided, skipping fetch");
       return;
@@ -112,6 +118,7 @@ function useDigmStoreImpl() {
           // Don't throw, just log and continue
         } else if (data) {
           console.log("[fetchAll] Profile data found:", data);
+          if (isStale()) { console.log("[fetchAll] Stale profile result ignored for", expectedUid); return; }
           setUserProfile({
             vision: data.vision ?? "",
             xp: data.xp ?? 0,
@@ -126,6 +133,7 @@ function useDigmStoreImpl() {
           try {
             const created = await ensureProfile({ defaults: { vision: "", onboarded: false } });
             console.log("[fetchAll] ensureProfile created:", created.profile);
+            if (isStale()) { console.log("[fetchAll] Stale ensureProfile ignored for", expectedUid); return; }
             setUserProfile({
               vision: created.profile.vision ?? "",
               xp: 0,
@@ -155,6 +163,7 @@ function useDigmStoreImpl() {
         // Don't throw, just log and continue
       } else {
         console.log("[fetchAll] Pinned goals data:", data);
+        if (isStale()) { console.log("[fetchAll] Stale pinned_goals ignored for", expectedUid); return; }
         const ids = (data ?? []).map((r: any) => r.goal_id as string);
         setPinnedGoalIds(prev => (arraysEqual(prev, ids) ? prev : ids));
         console.log("[fetchAll] pinned:", ids.length);
@@ -189,6 +198,7 @@ function useDigmStoreImpl() {
           timeBound: g.time_bound ?? undefined,
           completedAt: g.completed_at ?? undefined,
         }));
+        if (isStale()) { console.log("[fetchAll] Stale goals ignored for", expectedUid); return; }
         setGoals(mappedGoals);
         console.log("[fetchAll] goals:", mappedGoals.length, mappedGoals.map(g => g.title));
       }
@@ -205,6 +215,7 @@ function useDigmStoreImpl() {
       if (error) {
         console.error("[fetchAll] Journal entries query error:", error);
       } else {
+        if (isStale()) { console.log("[fetchAll] Stale journal_entries ignored for", expectedUid); return; }
         const mapped: JournalEntry[] = (data ?? []).map((j: any) => ({
           id: j.id,
           date: j.created_at,
@@ -244,7 +255,7 @@ function useDigmStoreImpl() {
           createdAt: t.created_at,
           completedAt: t.completed_at ?? undefined,
         }));
-
+        if (isStale()) { console.log("[fetchAll] Stale tasks ignored for", expectedUid); return; }
         setTasks(mapped);
         setGoals((g) =>
           g.map((goal) => {
@@ -307,6 +318,7 @@ function useDigmStoreImpl() {
         const uid = user.id;
         console.log("[useDigmStore] Setting userId and fetching data for:", uid);
         setUserId(uid);
+        currentUserIdRef.current = uid;
         await new Promise((r) => setTimeout(r, 100));
         console.log("[useDigmStore] About to call fetchAll for user:", uid);
         try {
@@ -338,6 +350,7 @@ function useDigmStoreImpl() {
       uid = user?.id ?? null;
       if (uid) {
         setUserId(uid); // Set userId if we found it
+        currentUserIdRef.current = uid;
       }
     }
     

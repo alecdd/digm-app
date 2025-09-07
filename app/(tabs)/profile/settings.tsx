@@ -20,7 +20,7 @@ export default function SettingsScreen() {
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const store = useDigmStore();
-  const SUPPORT_URL = "https://digmapp.com";
+  const SUPPORT_URL = "https://digmapp.com/support";
   const FAQ_URL     = "https://digmapp.com";
   const ABOUT_URL   = "https://digmapp.com";
   const FEEDBACK_URL = "https://docs.google.com/forms/d/1_N2y_uTiReRoZRgi0BiVQKtjLn-rC6QN0tUhZpzvAvM/edit";

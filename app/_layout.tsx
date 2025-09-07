@@ -33,7 +33,7 @@ function AppContent() {
   const navState = useRootNavigationState();
   const hiddenRef = useRef(false);
   const [splashVisible, setSplashVisible] = useState(true);
-  const { loading, reloading } = useDigmStore();
+  const { loading } = useDigmStore();
   
   // Hooks moved to main component to avoid Rules of Hooks violations
   useAuthListener();
@@ -62,7 +62,7 @@ function AppContent() {
       <View style={styles.container}>
         <StatusBar style="light" />
         <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-          <AnimatedSplash visible={splashVisible || loading || reloading} />
+          <AnimatedSplash visible={splashVisible || loading } />
           <DigmHeader />
           <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
             <Stack.Screen name="(tabs)" />

@@ -120,6 +120,39 @@ async def redirect_reset(request: Request):
         target = f"{target}?{query}"
     return RedirectResponse(url=target, status_code=302)
 
+# Email confirmation redirector (signup confirmation / magic links)
+@app.get("/auth/confirm")
+async def redirect_confirm(request: Request):
+    # Preserve Supabase query params while steering to the correct in-app route
+    q = request.query_params
+    dest = q.get("dest", "auth/login")
+    redirect = q.get("redirect", "")
+
+    # Build deep link base
+    deep_link_base = os.getenv("APP_DEEP_LINK_BASE")
+    app_scheme = os.getenv("APP_SCHEME", "digm")
+
+    # Sanitize destination path
+    import re
+    safe_dest = dest if re.fullmatch(r"[A-Za-z0-9_\-\/]+", dest or "") else "auth/login"
+
+    if deep_link_base:
+        base = deep_link_base.rstrip("/")
+        target = f"{base}/{safe_dest}"
+    else:
+        target = f"{app_scheme}://{safe_dest}"
+
+    # Preserve all Supabase params (code/token_hash/access_token/refresh_token/type)
+    from urllib.parse import urlencode
+    preserved = [(k, v) for k, v in q.items() if k not in ("dest", "redirect")]
+    if redirect:
+        preserved.insert(0, ("redirect", redirect))
+
+    if preserved:
+        target = f"{target}?{urlencode(preserved)}"
+
+    return RedirectResponse(url=target, status_code=302)
+
 # RAG Coach endpoint
 @app.post("/api/coach/query", response_model=CoachResponse)
 async def query_coach(

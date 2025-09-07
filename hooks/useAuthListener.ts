@@ -53,6 +53,9 @@ export function useAuthListener(storeFunctions?: {
         await new Promise((r) => setTimeout(r, 120));
         try {
           await reloadAllRef.current?.();
+          // Belt-and-suspenders: schedule a second and third pass in case the first fetch races with session propagation
+          setTimeout(() => reloadAllRef.current?.().catch(()=>{}), 400);
+          setTimeout(() => reloadAllRef.current?.().catch(()=>{}), 1500);
         } catch (e) {
           console.error("Failed to reload data after auth:", e);
         }

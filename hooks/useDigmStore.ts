@@ -133,6 +133,8 @@ function useDigmStoreImpl() {
               streak: 0,
               lastActive: new Date().toISOString(),
             });
+            // After creating a profile, mark this user as needing a second fetch to pick up derived tables
+            fetchedUsers.current.delete(uid);
           } catch (e) {
             console.warn("[fetchAll] ensureProfile failed:", e);
           }

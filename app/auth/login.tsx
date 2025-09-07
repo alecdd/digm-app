@@ -75,10 +75,7 @@ export default function Login() {
     try {
       setBusy(true);
       await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo:
-          Platform.OS === "web"
-            ? `${window.location.origin}/auth/reset`
-            : Linking.createURL("auth/reset"),
+        redirectTo: `${process.env.EXPO_PUBLIC_COACH_API_BASE || "https://digm.onrender.com"}/auth/reset`,
       });
       Alert.alert("Email sent", "Please check your inbox (and spam) to reset your password.");
     } catch (e: any) {

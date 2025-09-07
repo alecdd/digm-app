@@ -67,6 +67,17 @@ export default function ResetPasswordScreen() {
     })();
   }, [params?.token_hash, params?.type, params?.code, params?.access_token, params?.refresh_token]);
 
+  // If a redirect path was provided (e.g., after signup confirmation), honor it
+  useEffect(() => {
+    const r = (useLocalSearchParams() as any)?.redirect as string | undefined;
+    if (ready && r) {
+      try {
+        const path = r.startsWith("/") ? r : `/${r}`;
+        (useRouter()).replace(path as any);
+      } catch {}
+    }
+  }, [ready]);
+
   if (!ready) {
     return (
       <View style={styles.screen}>

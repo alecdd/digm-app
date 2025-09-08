@@ -159,7 +159,7 @@ const finalizeOnboarding = useCallback(async () => {
       return;
     }
 
-    const emailRedirectTo = `${process.env.EXPO_PUBLIC_COACH_API_BASE || "https://digm.onrender.com"}/auth/confirm?dest=auth/login&redirect=/onboarding/finish`;
+    const emailRedirectTo = `${process.env.EXPO_PUBLIC_COACH_API_BASE || "https://digm.onrender.com"}/auth/confirm?dest=auth/reset&redirect=/onboarding/finish`;
 
     console.log("Mobile Redirect [signup] redirectTo:", emailRedirectTo);
 

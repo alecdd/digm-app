@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 
 export default function ResetPasswordScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ code?: string; access_token?: string; refresh_token?: string; type?: string; token_hash?: string }>();
+  const params = useLocalSearchParams<{ code?: string; access_token?: string; refresh_token?: string; type?: string; token_hash?: string; redirect?: string }>();
   const [pw1, setPw1] = useState("");
   const [pw2, setPw2] = useState("");
   const [busy, setBusy] = useState(false);
@@ -69,14 +69,12 @@ export default function ResetPasswordScreen() {
 
   // If a redirect path was provided (e.g., after signup confirmation), honor it
   useEffect(() => {
-    const r = (useLocalSearchParams() as any)?.redirect as string | undefined;
-    if (ready && r) {
-      try {
-        const path = r.startsWith("/") ? r : `/${r}`;
-        (useRouter()).replace(path as any);
-      } catch {}
-    }
-  }, [ready]);
+    if (!ready) return;
+    const r = typeof params?.redirect === 'string' ? params.redirect : undefined;
+    if (!r) return;
+    const path = r.startsWith('/') ? r : `/${r}`;
+    router.replace(path as any);
+  }, [ready, params?.redirect]);
 
   if (!ready) {
     return (

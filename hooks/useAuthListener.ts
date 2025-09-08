@@ -45,9 +45,10 @@ export function useAuthListener(storeFunctions?: {
         uid !== lastUid.current;
 
       if (shouldReload) {
+        // Clear any cached data from a previous user before loading the new one
+        resetRef.current?.();
         lastUid.current = uid;
-        // Wait a bit longer to ensure the store is properly initialized
-        await new Promise((r) => setTimeout(r, 100));
+        await new Promise((r) => setTimeout(r, 75));
         try {
           await reloadAllRef.current?.();
         } catch (e) {

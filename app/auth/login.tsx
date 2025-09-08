@@ -30,6 +30,8 @@ export default function Login() {
     }
     try {
       setBusy(true);
+      // Ensure no prior session sticks around (prevents cross-user bleed)
+      try { await supabase.auth.signOut({ scope: 'global' }); } catch {}
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
         const msg = (error.message || "").toLowerCase();

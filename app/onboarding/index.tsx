@@ -163,8 +163,6 @@ const finalizeOnboarding = useCallback(async () => {
 
     console.log("Mobile Redirect [signup] redirectTo:", emailRedirectTo);
 
-    await supabase.auth.signOut({ scope: "global" }).catch(()=>{});
-
     const { data, error } = await supabase.auth.signUp({
       email,
       password,

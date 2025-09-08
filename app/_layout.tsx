@@ -33,10 +33,10 @@ function AppContent() {
   const navState = useRootNavigationState();
   const hiddenRef = useRef(false);
   const [splashVisible, setSplashVisible] = useState(true);
-  const { loading } = useDigmStore();
+  const { loading, reloadAll, reset } = useDigmStore();
   
   // Hooks moved to main component to avoid Rules of Hooks violations
-  useAuthListener();
+  useAuthListener({ reloadAll, reset });
   useSupabaseDeepLink();
 
   useEffect(() => {

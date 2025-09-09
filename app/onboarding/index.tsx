@@ -131,7 +131,14 @@ const finalizeOnboarding = useCallback(async () => {
   try {
     setSaving(true);
 
-    await AsyncStorage.setItem("pendingOnboardingAnswers", JSON.stringify(answers));
+    // Store answers + anon user ID for migration after email confirmation
+    const { data: currentUser } = await supabase.auth.getUser();
+    const anonUserId = currentUser?.user?.id;
+    
+    await AsyncStorage.setItem("pendingOnboardingAnswers", JSON.stringify({
+      answers,
+      anonUserId: isAnon(currentUser?.user) ? anonUserId : null
+    }));
 
     // If we already have a real session, jump to finish
     {

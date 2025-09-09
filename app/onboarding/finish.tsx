@@ -84,9 +84,40 @@ export default function OnboardingFinish() {
               try {
                 const parsed = JSON.parse(cached);
                 if (parsed && typeof parsed === "object") {
-                  answers = parsed;
+                  // Handle both old format (direct answers) and new format (with anonUserId)
+                  if (parsed.answers) {
+                    answers = parsed.answers;
+                    const anonUserId = parsed.anonUserId;
+                    
+                    // Migrate data from anonymous user to real user
+                    if (anonUserId && anonUserId !== userId) {
+                      console.log(`[finish] Migrating data from anon user ${anonUserId} to real user ${userId}`);
+                      
+                      // Migrate onboarding_answers from anon user
+                      try {
+                        const { data: anonAnswers } = await supabase
+                          .from("onboarding_answers")
+                          .select("data")
+                          .eq("user_id", anonUserId)
+                          .maybeSingle();
+                        
+                        if (anonAnswers?.data) {
+                          answers = { ...answers, ...anonAnswers.data };
+                          // Delete the anon user's answers
+                          await supabase.from("onboarding_answers").delete().eq("user_id", anonUserId);
+                        }
+                      } catch (e) {
+                        console.warn("[finish] Failed to migrate onboarding_answers:", e);
+                      }
+                    }
+                  } else {
+                    // Old format - direct answers object
+                    answers = parsed;
+                  }
                 }
-              } catch {}
+              } catch (e) {
+                console.warn("[finish] Failed to parse cached answers:", e);
+              }
             }
           }
 

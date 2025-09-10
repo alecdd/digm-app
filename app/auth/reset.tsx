@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 
 export default function ResetPasswordScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ code?: string; access_token?: string; refresh_token?: string; type?: string; token_hash?: string; redirect?: string }>();
+  const params = useLocalSearchParams<{ code?: string; token?: string; access_token?: string; refresh_token?: string; type?: string; token_hash?: string; redirect?: string }>();
   const [pw1, setPw1] = useState("");
   const [pw2, setPw2] = useState("");
   const [busy, setBusy] = useState(false);
@@ -42,30 +42,44 @@ export default function ResetPasswordScreen() {
   };
 
   useEffect(() => {
-    // Handle various Supabase link formats: token_hash (recovery), PKCE code, or access/refresh tokens
+    // Handle various Supabase link formats: token_hash (recovery/signup), PKCE code, or access/refresh tokens
     (async () => {
       try {
-        if (params?.token_hash && params?.type === 'recovery') {
-          const { error } = await supabase.auth.verifyOtp({ type: 'recovery', token_hash: String(params.token_hash) });
+        console.log('[reset] Processing params:', params);
+        
+        if (params?.token_hash && (params?.type === 'recovery' || params?.type === 'signup')) {
+          console.log('[reset] Using verifyOtp for type:', params.type);
+          const { error } = await supabase.auth.verifyOtp({ 
+            type: params.type as 'recovery' | 'signup', 
+            token_hash: String(params.token_hash) 
+          });
           if (error) throw error;
-        } else if (params?.code) {
-          const { error } = await supabase.auth.exchangeCodeForSession(String(params.code));
+        } else if (params?.code || params?.token) {
+          // Handle both 'code' and 'token' parameters for PKCE
+          const tokenParam = params?.code || params?.token;
+          console.log('[reset] Using exchangeCodeForSession with token:', tokenParam?.slice(0, 20) + '...');
+          const { error } = await supabase.auth.exchangeCodeForSession(String(tokenParam));
           if (error) throw error;
         } else if (params?.access_token && params?.refresh_token) {
           // Non-PKCE fallback
+          console.log('[reset] Using setSession with access/refresh tokens');
           const { error } = await supabase.auth.setSession({
             access_token: String(params.access_token),
             refresh_token: String(params.refresh_token),
           });
           if (error) throw error;
+        } else {
+          console.log('[reset] No valid auth parameters found');
         }
+        console.log('[reset] Auth processing completed successfully');
       } catch (e: any) {
+        console.error('[reset] Auth error:', e);
         Alert.alert("Link error", e?.message || "Your reset link is invalid or expired. Request a new one from Sign in → Forgot password.");
       } finally {
         setReady(true);
       }
     })();
-  }, [params?.token_hash, params?.type, params?.code, params?.access_token, params?.refresh_token]);
+  }, [params?.token_hash, params?.type, params?.code, params?.token, params?.access_token, params?.refresh_token]);
 
   // If a redirect path was provided (e.g., after signup confirmation), honor it
   useEffect(() => {

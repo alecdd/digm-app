@@ -127,7 +127,10 @@ export default function OnboardingScreen() {
   }, []);
 
 const finalizeOnboarding = useCallback(async () => {
-  const failSafe = setTimeout(() => setSaving(false), 12000);
+  const failSafe = setTimeout(() => {
+    setSaving(false);
+    Alert.alert("Timeout", "Account creation took too long. Check your connection and try again.");
+  }, 12000);
   try {
     setSaving(true);
 
@@ -169,6 +172,11 @@ const finalizeOnboarding = useCallback(async () => {
     const emailRedirectTo = `${process.env.EXPO_PUBLIC_COACH_API_BASE || "https://digm.onrender.com"}/auth/confirm?dest=auth/reset&redirect=/onboarding/finish`;
 
     console.log("Mobile Redirect [signup] redirectTo:", emailRedirectTo);
+    console.log("[signup] Environment check:", {
+      coachApiBase: process.env.EXPO_PUBLIC_COACH_API_BASE,
+      supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL?.slice(0, 30) + "...",
+      isDev: __DEV__
+    });
 
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -183,6 +191,7 @@ const finalizeOnboarding = useCallback(async () => {
       error: error?.message,
       hasSession: !!data?.session,
       userId: data?.user?.id,
+      timestamp: new Date().toISOString()
     });
 
     if (error) {

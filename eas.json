@@ -2,6 +2,11 @@
   "cli": { "appVersionSource": "remote" },
   "build": {
     "production": {
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://irityzdnjsirjwrmmscy.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlyaXR5emRuanNpcmp3cm1tc2N5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzMzMzc3NjYsImV4cCI6MjA0ODkxMzc2Nn0.iEn4xJm_nLzY8VGPSBGJhKJHr0hKAUEDvRvOEf-hGH4",
+        "EXPO_PUBLIC_COACH_API_BASE": "https://digm.onrender.com"
+      },
       "ios": { "autoIncrement": true }
     }
   },

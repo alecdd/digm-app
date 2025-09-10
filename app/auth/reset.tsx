@@ -47,6 +47,9 @@ export default function ResetPasswordScreen() {
       try {
         console.log('[reset] Processing params:', params);
         
+        // DEBUG: Show params in alert for TestFlight debugging (always show for now)
+        Alert.alert('Debug: Reset Params', JSON.stringify(params, null, 2));
+        
         if (params?.token_hash && (params?.type === 'recovery' || params?.type === 'signup')) {
           console.log('[reset] Using verifyOtp for type:', params.type);
           const { error } = await supabase.auth.verifyOtp({ 
@@ -85,8 +88,13 @@ export default function ResetPasswordScreen() {
   useEffect(() => {
     if (!ready) return;
     const r = typeof params?.redirect === 'string' ? params.redirect : undefined;
-    if (!r) return;
+    console.log('[reset] Ready, checking redirect:', r);
+    if (!r) {
+      console.log('[reset] No redirect param, staying on reset screen');
+      return;
+    }
     const path = r.startsWith('/') ? r : `/${r}`;
+    console.log('[reset] Redirecting to:', path);
     router.replace(path as any);
   }, [ready, params?.redirect]);
 
